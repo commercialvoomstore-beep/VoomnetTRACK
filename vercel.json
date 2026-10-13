@@ -1,5 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "echo \"interface déjà assemblée : aucune compilation nécessaire\"",
+  "installCommand": "npm install --omit=dev",
+  "outputDirectory": null,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" }
   ],

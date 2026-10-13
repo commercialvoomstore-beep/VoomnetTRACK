@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "node dev-server.js",
+    "assemble": "python3 build.py",
     "migrate": "node db/migrate.js",
     "seed": "node db/seed.js",
-    "build": "python3 build.py"
+    "test:cloud": "python3 test/cloud_test.py"
   },
   "dependencies": {
     "pg": "^8.13.1"
