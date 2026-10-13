@@ -1,0 +1,771 @@
+<body>
+
+<!-- ============================== SPLASH PREMIUM ============================== -->
+<div id="splash" role="status" aria-label="Chargement de VOOMNET Track">
+  <div class="splash-halo" aria-hidden="true"></div>
+  <div class="splash-inner">
+    <div class="splash-logo"><img data-logo-track alt="VOOMNET Track" width="__W_LOGO_TRACK__" height="__H_LOGO_TRACK__"></div>
+    <div class="splash-sub">Espace RH • Mobility Control</div>
+    <div class="splash-rule" aria-hidden="true"></div>
+    <div class="splash-bar" aria-hidden="true"><i></i></div>
+  </div>
+  <div class="splash-version">VOOMNET Track · v3.10</div>
+</div>
+
+
+<!-- ============================ ÉCRAN D'ACCÈS RH ============================ -->
+<div id="login" class="hidden">
+  <div class="login-card">
+    <aside class="login-brand">
+      <img class="login-logo" data-logo-track alt="VOOMNET Track" width="__W_LOGO_TRACK__" height="__H_LOGO_TRACK__">
+      <span class="login-badge"><span class="ic" data-ico="shield"></span> Gestion RH &amp; Mobility Control</span>
+      <h2>Le centre de pilotage unique de la mobilité.</h2>
+      <p>Une seule plateforme pour la RH : déplacements, collaborateurs, services et coûts de mobilité réunis dans un tableau de bord centralisé.</p>
+      <ul class="login-perks">
+        <li><span class="ic" data-ico="list"></span><span><b>Registre des sorties</b> — motif, trajet, montant et justificatif par déplacement.</span></li>
+        <li><span class="ic" data-ico="users"></span><span><b>Collaborateurs &amp; services</b> — des données suivies et filtrables, pas des espaces séparés.</span></li>
+        <li><span class="ic" data-ico="pdf"></span><span><b>Rapport mensuel PDF</b> — totaux par service, prêt à signer, généré localement.</span></li>
+        <li><span class="ic" data-ico="shieldCheck"></span><span><b>Accès protégé</b> — identifiant personnel obligatoire, aucune donnée ne quitte cet appareil.</span></li>
+      </ul>
+    </aside>
+
+    <section class="login-form">
+      <div>
+        <h3>Accès à la plateforme RH</h3>
+        <p class="lead">Pilotez les déplacements, les collaborateurs et les coûts de mobilité depuis un espace centralisé.</p>
+      </div>
+
+      <div class="field">
+        <label for="loginIdent">Identifiant</label>
+        <div class="field-ic">
+          <span class="ic" data-ico="user"></span>
+          <input class="input" id="loginIdent" placeholder="Votre identifiant" autocomplete="username" spellcheck="false">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="loginPwd">Mot de passe</label>
+        <div class="field-ic">
+          <span class="ic" data-ico="lock"></span>
+          <input class="input" id="loginPwd" type="password" placeholder="••••••••••" autocomplete="current-password">
+          <button class="eye-btn" id="btnEye" type="button" aria-label="Afficher le mot de passe" title="Afficher / masquer">
+            <span class="ic" data-ico="eye"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="err-msg alert-inline" id="err-login">
+        <span class="ic" data-ico="alert"></span><span>Identifiant ou mot de passe incorrect.</span>
+      </div>
+
+      <div class="login-actions">
+        <button class="btn btn-primary btn-lg btn-block" id="btnLogin"><span class="ic" data-ico="arrowRight"></span> Accéder au tableau de bord</button>
+      </div>
+
+      <div class="login-note">
+        <span class="ic" data-ico="lock"></span>
+        <div>Accès réservé au personnel autorisé. Les identifiants sont remis par la direction et se
+        modifient dans <b>Paramètres → Comptes &amp; sécurité</b>.</div>
+      </div>
+
+      <div class="login-foot">Données conservées localement sur cet appareil · VOOMNET Track v3.10</div>
+    </section>
+  </div>
+</div>
+
+<div class="app">
+  <!-- ================================= SIDEBAR ================================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-inner">
+        <img class="brand-img" data-logo-track alt="VOOMNET Track" width="__W_LOGO_TRACK__" height="__H_LOGO_TRACK__">
+        <div class="brand-sub">Espace RH • Mobility Control</div>
+      </div>
+    </div>
+
+    <div class="nav-label">Pilotage</div>
+    <div class="nav-item active" data-view="dashboard">
+      <span class="nav-ico"><span class="ic" data-ico="grid"></span></span> Tableau de bord
+    </div>
+    <div class="nav-item" data-view="registre">
+      <span class="nav-ico"><span class="ic" data-ico="list"></span></span> Registre des sorties
+      <span class="nav-badge" id="badgeRegistre">0</span>
+    </div>
+    <div class="nav-item" data-view="analyse">
+      <span class="nav-ico"><span class="ic" data-ico="chart"></span></span> Analyse
+    </div>
+    <div class="nav-item" data-view="rapports">
+      <span class="nav-ico"><span class="ic" data-ico="doc"></span></span> Rapports
+    </div>
+
+    <div class="nav-label">Ressources</div>
+    <div class="nav-item" data-view="collaborateurs">
+      <span class="nav-ico"><span class="ic" data-ico="users"></span></span> Collaborateurs
+      <span class="nav-badge violet" id="badgeCollabs">0</span>
+    </div>
+
+    <div class="nav-label">Configuration</div>
+    <div class="nav-item" data-view="params">
+      <span class="nav-ico"><span class="ic" data-ico="settings"></span></span> Paramètres
+    </div>
+
+    <div class="side-foot">
+      <div class="session-card">
+        <div class="sc-top">
+          <span class="avatar" id="sideAvatar">RH</span>
+          <span class="sc-who"><b id="sideUserName">Espace RH</b><span id="sideUserRole">Responsable RH</span></span>
+          <span class="sc-dot" title="Session active"></span>
+        </div>
+        <button class="btn-logout" id="btnLogoutSide"><span class="ic" data-ico="logout"></span> Se déconnecter</button>
+      </div>
+      <div class="storage-pill" id="storePill"><span class="dot"></span><span id="storePillTxt">Stockage local actif</span></div>
+      <div class="side-version">VOOMNET Track · v3.10</div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ================================== MAIN ================================== -->
+  <div class="main">
+    <!-- HEADER -->
+    <header class="topbar">
+      <button class="burger" id="burger" aria-label="Menu"><span class="ic" data-ico="menu"></span></button>
+      <div class="header-brand" title="VOOMNET Track"><img src="__SYMBOL_TRACK__" alt="VOOMNET Track"></div>
+      <div class="page-head">
+        <h1 id="pageTitle">Tableau de bord</h1>
+        <div class="sub" id="pageSub">Vue d'ensemble de la mobilité et des dépenses</div>
+      </div>
+      <div class="topbar-spacer"></div>
+
+      <label class="search" for="searchInput">
+        <span class="ic" data-ico="search"></span>
+        <input id="searchInput" type="search" placeholder="Rechercher une sortie, un agent…" autocomplete="off">
+        <kbd>Ctrl K</kbd>
+      </label>
+
+      <span class="chip gold" id="chipMonth" title="Mois courant">—</span>
+
+      <span class="role-badge" id="roleBadge" title="Compte connecté"><span class="ic" data-ico="shieldCheck"></span><span id="roleBadgeTxt">RH</span></span>
+
+      <button class="icon-btn danger-soft" id="btnLogoutTop" aria-label="Se déconnecter" title="Se déconnecter"><span class="ic" data-ico="logout"></span><span class="lb">Déconnexion</span></button>
+
+      <div class="pop" id="bellPop">
+        <button class="icon-btn" id="btnBell" aria-label="Notifications" title="Notifications">
+          <span class="ic" data-ico="bell"></span>
+          <span class="ping hidden" id="bellCount">0</span>
+        </button>
+        <div class="pop-menu" id="bellMenu">
+          <div class="pop-head"><b>Notifications</b><span id="bellHint">—</span></div>
+          <div id="bellList"></div>
+        </div>
+      </div>
+
+      <div class="pop" id="userPop">
+        <button class="user-chip" id="btnUser">
+          <span class="avatar" id="avatarInitials">RH</span>
+          <span class="meta"><b id="userName">Espace RH</b><span id="userRole">Responsable RH</span></span>
+          <span class="chev" data-ico="chevDown"></span>
+        </button>
+        <div class="pop-menu" id="userMenu">
+          <div class="pop-item" data-action="params"><span class="ic" data-ico="settings"></span><span class="tx"><b>Paramètres</b>Identité, agents, transports, devise</span></div>
+          <div class="pop-item" data-action="backup"><span class="ic" data-ico="save"></span><span class="tx"><b>Sauvegarde JSON</b>Télécharger toutes les données</span></div>
+          <div class="pop-item" data-action="rapports"><span class="ic" data-ico="doc"></span><span class="tx"><b>Rapport mensuel</b>Aperçu et export PDF</span></div>
+          <div class="pop-sep"></div>
+          <div class="pop-item" data-action="new"><span class="ic" data-ico="plus"></span><span class="tx"><b>Nouveau déplacement</b>Enregistrer une sortie</span></div>
+          <div class="pop-item" data-action="logout"><span class="ic" data-ico="logout"></span><span class="tx"><b>Se déconnecter</b>Revenir à l'écran d'accès RH</span></div>
+          <div class="pop-item danger" data-action="wipe"><span class="ic" data-ico="trash"></span><span class="tx"><b>Effacer les données</b>Remise à zéro du registre</span></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ======================= TABLEAU DE BORD RH CENTRALISÉ ======================= -->
+      <section class="view active" id="view-dashboard">
+
+        <!-- 1. EN-TÊTE RH — identité « mobilité corporate » -->
+        <div class="hero reveal" style="--i:0">
+          <div class="hero-l">
+            <div class="hero-eyebrow"><i></i> Espace RH — contrôle de la mobilité</div>
+            <h2 class="hero-title" id="welcomeTitle">Pilotage de la mobilité et des dépenses</h2>
+            <p class="hero-sub" id="welcomeSub">Synthèse consolidée des déplacements de l'organisation.</p>
+            <div class="hero-stats" id="heroStats"></div>
+          </div>
+          <div class="hero-r">
+            <div class="hero-actions">
+              <button class="btn btn-gold" id="qaPdf"><span class="ic" data-ico="pdf"></span> Télécharger le PDF</button>
+              <button class="btn btn-primary" data-goto="new"><span class="ic" data-ico="plus"></span> Nouveau déplacement</button>
+            </div>
+            <div class="hero-art" aria-hidden="true"><svg viewBox="16 92 502 136" role="img" aria-label="Suivi des déplacements"><defs><pattern id="hv-bp" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#EFE8F4" stroke-width="1"/></pattern></defs><ellipse class="hv-shadow" cx="264" cy="196" rx="178" ry="9" fill="#4A2A63" opacity=".055"/><!-- ROUES : plantées au sol (dessinées AVANT la caisse, qui masque leur moitié haute) --><g class="hv-tyre"><g fill="#fff" stroke="#4A2A63" stroke-width="2.6"><circle cx="176" cy="170" r="22"/><circle cx="396" cy="170" r="22"/></g><g fill="none" stroke="#6B4A82" stroke-width="1.5"><circle cx="176" cy="170" r="9.5"/><circle cx="396" cy="170" r="9.5"/><path d="M176 181.5v-2.5M167.5 170H165M186.5 170h-2.5"/><path d="M396 181.5v-2.5M387.5 170H385M406.5 170h-2.5"/></g><g fill="#C9A227"><circle cx="176" cy="170" r="3.4"/><circle cx="396" cy="170" r="3.4"/></g></g><!-- CAISSE COMPLÈTE : pivote sur le pneu avant --><g class="hv-body"><!-- carrosserie d'un seul tenant, fond blanc : elle masque le haut des roues --><path d="M80 168V118a14 14 0 0 1 14-14h206l56 30h88a14 14 0 0 1 14 14v20z" fill="#fff" stroke="#4A2A63" stroke-width="2.4" stroke-linejoin="round"/><!-- bas de caisse + passages de roues --><path d="M80 168h69M149 168a27 27 0 0 1 54 0M203 168h166M369 168a27 27 0 0 1 54 0M423 168h35" fill="none" stroke="#4A2A63" stroke-width="2.4" stroke-linecap="round"/><!-- feux arrière --><path d="M80 128h5v15h-5z" fill="#F7E7E5" stroke="#B4645F" stroke-width="1.3"/><!-- livrée : filet doré + marque --><path d="M96 141h132" fill="none" stroke="#C9A227" stroke-width="2.4" stroke-linecap="round"/><text x="96" y="131" font-family="system-ui" font-size="10.5" font-weight="700" letter-spacing="2.8" fill="#4A2A63" fill-opacity=".58">VOOMNET</text><!-- portière coulissante --><path d="M240 122v46" fill="none" stroke="#9C87B2" stroke-width="1.5"/><path d="M252 136h22" fill="none" stroke="#4A2A63" stroke-width="2.2" stroke-linecap="round"/><!-- vitrage cabine --><path d="M306 118h34l15 24h-49z" fill="#EFE8F4" fill-opacity=".7" stroke="#4A2A63" stroke-width="1.8" stroke-linejoin="round"/><path d="M312 124h24l7 12h-31z" fill="#fff" fill-opacity=".55"/><!-- rétroviseur --><path d="M304 114l4-8" fill="none" stroke="#4A2A63" stroke-width="1.8" stroke-linecap="round"/><rect x="308" y="95" width="15" height="10" rx="4" fill="#fff" stroke="#4A2A63" stroke-width="1.8"/><!-- phare --><path d="M430 144h12a6 6 0 0 1 6 6v6h-18z" fill="#FBF7E7" stroke="#4A2A63" stroke-width="1.6" stroke-linejoin="round"/></g><!-- TRAJET : pointillés animés + départ + destination --><path class="hv-route" d="M44 216h432" fill="none" stroke="#DFD2E9" stroke-width="2.2" stroke-dasharray="2 9" stroke-linecap="round"/><circle cx="44" cy="216" r="5" fill="#fff" stroke="#6B4A82" stroke-width="2.4"/><g transform="translate(486 176)"><path d="M12 40c0-4 12-16 12-26A12 12 0 1 0 0 14c0 10 12 22 12 26z" fill="#fff" stroke="#C9A227" stroke-width="2.4" stroke-linejoin="round"/><circle cx="12" cy="14" r="4.6" fill="#C9A227"/></g><g stroke="#C9A227" stroke-width="2.4" stroke-linecap="round" opacity=".8"><path d="M34 132h20"/><path d="M26 148h12"/></g></svg></div>
+          </div>
+        </div>
+
+        <!-- 2. FILTRES GLOBAUX (appliqués à tout le tableau de bord) -->
+        <div class="filterbar section reveal" style="--i:1">
+          <div class="fb-cell">
+            <label for="dashMonth">Période</label>
+            <input type="month" class="input" id="dashMonth">
+          </div>
+          <div class="fb-cell">
+            <label for="gService">Service</label>
+            <select class="input" id="gService"><option value="">Tous les services</option></select>
+          </div>
+          <div class="fb-cell">
+            <label for="gAgent">Collaborateur</label>
+            <select class="input" id="gAgent"><option value="">Tous les collaborateurs</option></select>
+          </div>
+          <div class="fb-cell">
+            <label for="gType">Type de déplacement</label>
+            <select class="input" id="gType"><option value="">Tous les types</option></select>
+          </div>
+          <div class="fb-reset">
+            <button class="btn btn-ghost btn-sm" id="btnResetFilters"><span class="ic" data-ico="x"></span> Réinitialiser</button>
+          </div>
+          <div class="filter-chips" id="filterChips" style="grid-column:1/-1"></div>
+        </div>
+
+        <!-- 3. KPI -->
+        <div class="grid kpi-grid section" id="kpiRow" style="--i:2"></div>
+
+        <!-- 3bis. SUIVI TRANSPORT — chaîne de traitement (design technologique) -->
+        <div class="section reveal" style="--i:2">
+          <div class="card pad-lg">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="route"></span></span> Suivi transport — chaîne de traitement</h3>
+                <div class="desc">De l'enregistrement au règlement. Cliquez sur une étape pour ouvrir le registre correspondant.</div>
+              </div>
+              <span class="tech-live"><span class="pulse"></span> SUIVI ACTIF</span>
+            </div>
+            <div class="flow" id="flowTrack"></div>
+          </div>
+        </div>
+
+        <!-- 3ter. FLUX DE MOBILITÉ — trajets suivis en continu -->
+        <div class="section reveal" style="--i:3">
+          <div class="grid g-32">
+            <div class="card pad-lg">
+              <div class="card-h">
+                <div class="t">
+                  <h3><span class="ic-chip"><span class="ic" data-ico="bolt"></span></span> Flux de mobilité récent</h3>
+                  <div class="desc">Trajet, moyen de transport, montant et statut — les derniers mouvements enregistrés</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" data-goto="registre"><span class="ic" data-ico="arrowRight"></span> Tout le registre</button>
+              </div>
+              <div class="timeline" id="mobTimeline"></div>
+            </div>
+
+            <div class="card pad-lg">
+              <div class="card-h">
+                <div class="t">
+                  <h3><span class="ic-chip"><span class="ic" data-ico="gauge"></span></span> Réseau &amp; trajets</h3>
+                  <div class="desc">Intensité des liaisons et moyens de transport de la période</div>
+                </div>
+              </div>
+              <div class="net-stats" id="netStats"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. GRAPHIQUES -->
+        <div class="grid g-32 section">
+          <div class="card pad-lg reveal" style="--i:1">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="chart"></span></span> Évolution des dépenses</h3>
+                <div class="desc" id="evoDesc">6 derniers mois — total mensuel consolidé</div>
+              </div>
+              <div class="seg" id="evoRange">
+                <button class="on" data-range="6">6 mois</button>
+                <button data-range="12">12 mois</button>
+              </div>
+            </div>
+            <div id="chartEvo"></div>
+          </div>
+
+          <div class="card pad-lg reveal" style="--i:2">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="wallet"></span></span> Part des services</h3>
+                <div class="desc">Dépenses de la période sélectionnée</div>
+              </div>
+            </div>
+            <div id="chartSvc"></div>
+          </div>
+        </div>
+
+        <!-- 5. RÉPARTITION PAR SERVICE -->
+        <div class="section">
+          <div class="section-h">
+            <div>
+              <h2>Répartition par service</h2>
+              <div class="desc">Cliquez sur un service pour filtrer tout le tableau de bord — aucun espace séparé, uniquement un filtre</div>
+            </div>
+            <button class="link-btn" data-goto="analyse">Analyse détaillée →</button>
+          </div>
+          <div class="svc-list" id="svcList"></div>
+        </div>
+
+        <!-- 6. ACTIVITÉ DES COLLABORATEURS -->
+        <div class="section">
+          <div class="section-h">
+            <div>
+              <h2>Activité des collaborateurs</h2>
+              <div class="desc">Les personnes suivies par la RH et leur consommation de mobilité</div>
+            </div>
+            <div class="row-scope">
+              <label class="mini-search" for="caSearch">
+                <span class="ic" data-ico="search"></span>
+                <input id="caSearch" type="search" placeholder="Rechercher un collaborateur…" autocomplete="off">
+              </label>
+            </div>
+          </div>
+          <div class="card pad-lg" style="padding:10px">
+            <div class="table-wrap" style="border:none;box-shadow:none" id="collabActivity"></div>
+          </div>
+        </div>
+
+        <!-- 7. DERNIERS DÉPLACEMENTS + CONTRÔLE -->
+        <div class="grid g-32 section">
+          <div class="card pad-lg">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="list"></span></span> Derniers déplacements</h3>
+                <div class="desc">Les sorties les plus récentes, tous services confondus</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" data-goto="registre"><span class="ic" data-ico="list"></span> Ouvrir le registre</button>
+            </div>
+            <div class="table-wrap" id="recentWrap"></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:var(--gap)">
+            <div class="card pad-lg">
+              <div class="card-h">
+                <div class="t">
+                  <h3><span class="ic-chip"><span class="ic" data-ico="alert"></span></span> Points d'attention</h3>
+                  <div class="desc">À traiter en priorité</div>
+                </div>
+              </div>
+              <div id="attentionList" class="rank-list"></div>
+            </div>
+
+            <div class="card pad-lg">
+              <div class="card-h">
+                <div class="t">
+                  <h3><span class="ic-chip"><span class="ic" data-ico="shield"></span></span> Contrôle &amp; conformité</h3>
+                  <div class="desc">Qualité des données de la période</div>
+                </div>
+              </div>
+              <div id="insights" class="stat-stack"></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================== NOUVEAU DÉPLACEMENT ============================== -->
+      <section class="view" id="view-new">
+        <div class="grid g-21">
+          <div class="card pad-lg">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="plus"></span></span> Enregistrer un déplacement</h3>
+                <div class="desc">Les champs marqués * sont obligatoires — les totaux se calculent automatiquement</div>
+              </div>
+            </div>
+
+            <form id="formDep" autocomplete="off" novalidate>
+              <div class="field">
+                <label>Service / Entité concernée <span class="req">*</span></label>
+                <div class="pick-grid" id="svcPick"></div>
+                <div class="err-msg" id="err-service">Veuillez sélectionner le service concerné.</div>
+              </div>
+
+              <div class="grid g-2" style="gap:0 18px">
+                <div class="field">
+                  <label for="fDate">Date du déplacement <span class="req">*</span></label>
+                  <input type="date" id="fDate" class="input">
+                  <div class="err-msg" id="err-date">Date obligatoire.</div>
+                </div>
+                <div class="field">
+                  <label for="fAgent">Personne / Bénéficiaire <span class="req">*</span></label>
+                  <input type="text" id="fAgent" class="input" list="agentList" placeholder="Ex : M. WILFRIED GADOU">
+                  <datalist id="agentList"></datalist>
+                  <div class="err-msg" id="err-agent">Nom de la personne obligatoire.</div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="fMotif">Motif de la sortie <span class="req">*</span> <span class="small">— court et précis</span></label>
+                <input type="text" id="fMotif" class="input" maxlength="90" placeholder="Ex : Livraison colis client Yopougon">
+                <div class="hint">90 caractères maximum. Motifs fréquents :</div>
+                <div class="chips" id="motifChips"></div>
+                <div class="err-msg" id="err-motif">Merci d'indiquer brièvement le motif.</div>
+              </div>
+
+              <div class="grid g-2" style="gap:0 18px">
+                <div class="field">
+                  <label for="fFrom">Point de départ</label>
+                  <input type="text" id="fFrom" class="input" placeholder="Ex : Siège VOOMNET">
+                </div>
+                <div class="field">
+                  <label for="fTo">Destination</label>
+                  <input type="text" id="fTo" class="input" placeholder="Ex : Plateau, Abidjan">
+                </div>
+              </div>
+
+              <div class="grid g-2" style="gap:0 18px">
+                <div class="field">
+                  <label for="fTrans">Moyen de transport <span class="req">*</span></label>
+                  <select id="fTrans" class="input"></select>
+                  <div class="err-msg" id="err-trans">Choisissez le moyen de transport.</div>
+                </div>
+                <div class="field">
+                  <label for="fMontant">Montant dépensé <span class="req">*</span></label>
+                  <div class="money-wrap">
+                    <input type="number" id="fMontant" class="input" min="0" step="25" placeholder="0">
+                    <span class="unit">FCFA</span>
+                  </div>
+                  <div class="err-msg" id="err-montant">Saisissez un montant supérieur à 0.</div>
+                </div>
+              </div>
+
+              <div class="grid g-3" style="gap:0 18px">
+                <div class="field">
+                  <label for="fKm">Distance parcourue (km)</label>
+                  <input type="number" id="fKm" class="input" min="0" step="1" placeholder="0">
+                </div>
+                <div class="field">
+                  <label for="fStatut">Statut de règlement</label>
+                  <select id="fStatut" class="input">
+                    <option value="A_REGLE">À régler / en attente</option>
+                    <option value="REGLE">Déjà réglé / remboursé</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fJustif">Pièce justificative</label>
+                  <select id="fJustif" class="input">
+                    <option value="OUI">Reçu / facture fourni</option>
+                    <option value="NON">Aucun justificatif</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="fNote">Observation (facultatif)</label>
+                <textarea id="fNote" class="input" placeholder="Détail complémentaire, n° de reçu, kilométrage…"></textarea>
+              </div>
+
+              <div class="btn-row mt20">
+                <button type="submit" class="btn btn-primary btn-lg"><span class="ic" data-ico="check"></span> Enregistrer le déplacement</button>
+                <button type="button" class="btn btn-ghost" id="btnResetForm"><span class="ic" data-ico="refresh"></span> Vider la fiche</button>
+              </div>
+            </form>
+          </div>
+
+          <div>
+            <div class="card pad-lg">
+              <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="info"></span></span> Aide-mémoire</h3></div></div>
+              <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.9;color:var(--ink-2)">
+                <li><b>Motif</b> : bref mais précis (« Dépannage serveur client », « Dépôt dossier DGI »).</li>
+                <li><b>Montant</b> : total réellement dépensé pour la sortie.</li>
+                <li><b>Statut</b> « À régler » alimente le KPI <i>Restant à régler</i>.</li>
+                <li><b>Distance</b> alimente le kilométrage de la période, suivi par la RH.</li>
+                <li>Le <b>PDF mensuel</b> reprend automatiquement tous les totaux.</li>
+              </ul>
+            </div>
+
+            <div class="card pad-lg mt16">
+              <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="users"></span></span> Entités autorisées</h3></div></div>
+              <div id="refServices" style="display:grid;gap:14px"></div>
+            </div>
+
+            <div class="card pad-lg mt16">
+              <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="route"></span></span> Moyens de transport suivis</h3></div></div>
+              <div id="refTransports" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== REGISTRE DES SORTIES ============================== -->
+      <section class="view" id="view-registre">
+        <div class="card pad-lg">
+          <div class="flex-between">
+            <div class="card-h" style="margin-bottom:0">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="list"></span></span> Registre des sorties</h3>
+                <div class="desc">Consulter, filtrer, modifier et exporter les déplacements</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost btn-sm" id="btnExportCsv"><span class="ic" data-ico="download"></span> Exporter CSV</button>
+              <button class="btn btn-ghost btn-sm" id="btnPrintList"><span class="ic" data-ico="print"></span> Imprimer</button>
+              <button class="btn btn-primary btn-sm" id="btnGoRapport"><span class="ic" data-ico="pdf"></span> Rapport du mois</button>
+            </div>
+          </div>
+
+          <div class="filters mt20">
+            <div>
+              <label class="small">Recherche (agent, motif, trajet…)</label>
+              <input type="text" class="input" id="fSearch" placeholder="🔍 Rechercher…">
+            </div>
+            <div>
+              <label class="small">Mois</label>
+              <input type="month" class="input" id="fMonth">
+            </div>
+            <div>
+              <label class="small">Service</label>
+              <select class="input" id="fService"><option value="">Tous les services</option></select>
+            </div>
+            <div>
+              <label class="small">Moyen de transport</label>
+              <select class="input" id="fTransport"><option value="">Tous les transports</option></select>
+            </div>
+            <div>
+              <label class="small">Statut</label>
+              <select class="input" id="fStatut2">
+                <option value="">Tous les statuts</option>
+                <option value="A_REGLE">À régler</option>
+                <option value="REGLE">Réglé</option>
+              </select>
+            </div>
+            <div>
+              <label class="small">Justificatif</label>
+              <select class="input" id="fJustif2">
+                <option value="">Tous</option>
+                <option value="OUI">Fourni</option>
+                <option value="NON">Manquant</option>
+              </select>
+            </div>
+            <div>
+              <label class="small">Lignes par page</label>
+              <select class="input" id="fPerPage">
+                <option>10</option><option selected>20</option><option>50</option><option value="999">Tout</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex-between mt16" style="gap:10px">
+            <div class="btn-row">
+              <button class="btn btn-ghost btn-sm" id="btnClearFilters"><span class="ic" data-ico="x"></span> Réinitialiser</button>
+              <span class="chip" id="chipFiltered">—</span>
+            </div>
+          </div>
+
+          <div class="table-wrap mt16" id="regWrap"></div>
+          <div class="pager" id="pager"></div>
+        </div>
+      </section>
+
+      <!-- =================================== ANALYSE =================================== -->
+      <section class="view" id="view-analyse">
+        <div class="card pad-lg">
+          <div class="flex-between">
+            <div class="card-h" style="margin-bottom:0">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="chart"></span></span> Analyse de la mobilité</h3>
+                <div class="desc">Tendances, structure des coûts et comportements de déplacement</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <div class="seg" id="aRange">
+                <button data-range="3">3 mois</button>
+                <button class="on" data-range="6">6 mois</button>
+                <button data-range="12">12 mois</button>
+              </div>
+              <select class="input" id="aService" style="width:auto"><option value="">Tous les services</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid g-4 section" id="aKpis"></div>
+
+        <div class="grid g-32 section">
+          <div class="card pad-lg">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="chart"></span></span> Dépenses par mois et par entité</h3>
+                <div class="desc">Comparaison des services sur la période analysée</div>
+              </div>
+            </div>
+            <div id="aMonthly"></div>
+          </div>
+          <div class="card pad-lg">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="route"></span></span> Structure des transports</h3>
+                <div class="desc">Part de chaque mode sur la période</div>
+              </div>
+            </div>
+            <div id="aTransports"></div>
+          </div>
+        </div>
+
+        <div class="grid g-3 section">
+          <div class="card pad-lg">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="users"></span></span> Top collaborateurs</h3><div class="desc">Par dépense cumulée</div></div></div>
+            <div id="aTopAgents" class="rank-list"></div>
+          </div>
+          <div class="card pad-lg">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="calendar"></span></span> Rythme hebdomadaire</h3><div class="desc">Dépenses par jour de la semaine</div></div></div>
+            <div id="aDow"></div>
+          </div>
+          <div class="card pad-lg">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="shield"></span></span> Contrôle & conformité</h3><div class="desc">Qualité des données du registre</div></div></div>
+            <div id="aQuality"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-h">
+            <div><h2>Synthèse par entité</h2><div class="desc">Chiffres consolidés de la période analysée</div></div>
+            <button class="btn btn-ghost btn-sm" id="aExportCsv"><span class="ic" data-ico="download"></span> Exporter la période</button>
+          </div>
+          <div class="card pad-lg" style="padding:8px">
+            <div class="table-wrap" style="border:none;box-shadow:none" id="aStatsTable"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================ COLLABORATEURS ================================ -->
+      <section class="view" id="view-collaborateurs">
+        <div class="card pad-lg">
+          <div class="flex-between">
+            <div class="card-h" style="margin-bottom:0">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="users"></span></span> Collaborateurs & mobilité</h3>
+                <div class="desc">Personnes autorisées à effectuer des déplacements et leur consommation</div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <input type="search" class="input" id="cSearch" placeholder="Rechercher un collaborateur…" style="width:240px">
+              <select class="input" id="cService" style="width:auto"><option value="">Tous les services</option></select>
+              <button class="btn btn-primary" id="btnAddCollab"><span class="ic" data-ico="plus"></span> Ajouter un collaborateur</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card pad-lg section" style="padding:8px">
+          <div class="table-wrap" style="border:none;box-shadow:none" id="cTable"></div>
+        </div>
+      </section>
+
+      <!-- ================================== RAPPORTS ================================== -->
+      <section class="view" id="view-rapports">
+        <div class="grid g-12">
+          <div class="card pad-lg no-print">
+            <div class="card-h">
+              <div class="t">
+                <h3><span class="ic-chip"><span class="ic" data-ico="doc"></span></span> Générer le rapport mensuel</h3>
+                <div class="desc">PDF officiel prêt à signer, généré dans votre navigateur</div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="rMonth">Mois concerné</label>
+              <input type="month" class="input" id="rMonth">
+            </div>
+            <div class="field">
+              <label for="rService">Périmètre</label>
+              <select class="input" id="rService"></select>
+            </div>
+            <div class="field">
+              <label for="rAgent">Collaborateur (facultatif)</label>
+              <input type="text" class="input" id="rAgent" placeholder="Ex : M. WILFRIED GADOU">
+            </div>
+            <div class="divider"></div>
+            <div class="field"><label class="switch"><input type="checkbox" id="rDetail" checked><span class="track"></span> Inclure le détail ligne par ligne</label></div>
+            <div class="field"><label class="switch"><input type="checkbox" id="rSign" checked><span class="track"></span> Inclure le bloc de signatures</label></div>
+            <div class="field"><label class="switch"><input type="checkbox" id="rLogos" checked><span class="track"></span> Afficher les logos des services</label></div>
+
+            <div class="btn-row mt20" style="display:grid;gap:10px">
+              <button class="btn btn-gold btn-lg btn-block" id="btnPdf"><span class="ic" data-ico="pdf"></span> Télécharger le PDF</button>
+              <button class="btn btn-ghost btn-block" id="btnPdfSaveAs"><span class="ic" data-ico="save"></span> Choisir l'emplacement…</button>
+              <button class="btn btn-primary btn-block" id="btnPdfOpen"><span class="ic" data-ico="eye"></span> Ouvrir le PDF</button>
+              <button class="btn btn-ghost btn-block" id="btnPrintReport"><span class="ic" data-ico="print"></span> Imprimer le rapport</button>
+              <button class="btn btn-ghost btn-block" id="btnCsvMonth"><span class="ic" data-ico="download"></span> Exporter le CSV du mois</button>
+            </div>
+            <div class="alert warn mt20">
+              <span class="ic" data-ico="alert"></span>
+              <div>Si l'aperçu intégré bloque le téléchargement, ouvrez <b>index.html</b> directement dans Chrome / Edge : le bouton fonctionne alors normalement. Le PDF est généré <b>localement</b>, sans internet.</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="report-paper" id="reportPaper"></div>
+            <div class="alert info mt16 no-print">
+              <span class="ic" data-ico="info"></span>
+              <div>Le PDF reprend fidèlement cet aperçu : en-tête, logos des services, synthèses par service et par transport, détail des sorties, observations et zone de signatures.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================= PARAMÈTRES ================================= -->
+      <section class="view" id="view-params">
+        <div class="grid g-2">
+          <div class="card pad-lg">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="briefcase"></span></span> Identité de l'entreprise</h3><div class="desc">Ces informations apparaissent dans l'en-tête du PDF</div></div></div>
+            <div class="grid g-2" style="gap:0 18px">
+              <div class="field"><label for="pNom">Nom de l'entreprise</label><input class="input" id="pNom"></div>
+              <div class="field"><label for="pSlogan">Slogan</label><input class="input" id="pSlogan"></div>
+              <div class="field"><label for="pVille">Ville / localisation</label><input class="input" id="pVille"></div>
+              <div class="field"><label for="pTel">Contacts</label><input class="input" id="pTel"></div>
+            </div>
+            <div class="field"><label for="pDevise">Devise affichée</label>
+              <select class="input" id="pDevise">
+                <option value="FCFA">FCFA (XOF)</option>
+                <option value="GNF">GNF (Guinée)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary" id="btnSaveParams"><span class="ic" data-ico="check"></span> Enregistrer les paramètres</button></div>
+          </div>
+
+          <div class="card pad-lg">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="users"></span></span> Collaborateurs</h3><div class="desc">Personnes enregistrées et service de rattachement</div></div></div>
+            <div class="grid g-2" style="gap:0 18px">
+              <div class="field"><label for="pAgentName">Nom du collaborateur</label><input class="input" id="pAgentName" placeholder="Ex : M. KOFFI Jean"></div>
+              <div class="field"><label for="pAgentSvc">Service de rattachement</label><select class="input" id="pAgentSvc"></select></div>
+            </div>
+            <div class="btn-row"><button class="btn btn-soft btn-sm" id="btnAddAgent"><span class="ic" data-ico="plus"></span> Ajouter</button></div>
+            <div class="mt16" id="agentListBox"></div>
+          </div>
+
+          <div class="card pad-lg">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="route"></span></span> Moyens de transport</h3><div class="desc">Proposés dans la fiche de déplacement</div></div></div>
+            <div class="field"><label for="pTransName">Ajouter un moyen de transport</label>
+              <input class="input" id="pTransName" placeholder="Ex : Taxi-moto (Jakarta)">
+            </div>
+            <div class="btn-row"><button class="btn btn-soft btn-sm" id="btnAddTrans"><span class="ic" data-ico="plus"></span> Ajouter</button></div>
+            <div class="mt16" id="transListBox"></div>
+          </div>
+
+          <div class="card pad-lg">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="key"></span></span> Comptes &amp; sécurité</h3><div class="desc">Identifiants d'accès à la plateforme (RH et Administrateur)</div></div></div>
+            <div id="accountCards" class="account-list"></div>
+            <div class="alert info mt20"><span class="ic" data-ico="info"></span><div>Les mots de passe sont enregistrés sous forme d'empreinte <b>non réversible</b> sur cet appareil. Chaque compte peut être renommé ou son mot de passe changé à tout moment.</div></div>
+          </div>
+
+          <div class="card pad-lg" id="cardDataMgmt">
+            <div class="card-h"><div class="t"><h3><span class="ic-chip"><span class="ic" data-ico="save"></span></span> Données & sauvegarde</h3><div class="desc">Sécurité et portabilité de vos données</div></div></div>
+            <div class="alert info" style="margin-bottom:16px"><span class="ic" data-ico="info"></span><div id="storeInfo">Stockage local du navigateur.</div></div>
+            <div class="btn-row">
+              <button class="btn btn-primary btn-sm" id="btnBackup"><span class="ic" data-ico="save"></span> Sauvegarde (JSON)</button>
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer"><span class="ic" data-ico="download"></span> Restaurer<input type="file" id="fileRestore" accept=".json" class="hidden"></label>
+              <button class="btn btn-danger btn-sm" id="btnWipe"><span class="ic" data-ico="trash"></span> Tout effacer</button>
+            </div>
+            <div class="divider"></div>
+            <div class="small" id="statsBox"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div id="toasts"></div>
+<div class="chart-tip" id="chartTip"></div>
+<div id="printArea" class="sr"></div>

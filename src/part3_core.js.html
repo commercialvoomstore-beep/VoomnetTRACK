@@ -1,0 +1,937 @@
+<script>
+/* ============================================================================
+   VOOMNET TRACK — NOYAU APPLICATIF
+   100 % autonome : aucune dépendance externe, fonctionne hors-ligne.
+   Refonte visuelle premium — logique métier et fonctionnalités préservées.
+   ============================================================================ */
+"use strict";
+
+/* ------------------------------ 1. ICÔNES SVG ------------------------------ */
+const ICONS = {
+grid: '<rect x="3" y="3" width="8" height="8" rx="2.6" fill="currentColor" fill-opacity=".18"/><rect x="13" y="3" width="8" height="8" rx="2.6"/><rect x="3" y="13" width="8" height="8" rx="2.6"/><rect x="13" y="13" width="8" height="8" rx="2.6" fill="currentColor" fill-opacity=".18"/><path d="M5.6 7h2.8M5.6 17h2.8M15.6 7h2.8M15.6 17h2.8" stroke-width="1.3" stroke-opacity=".5"/>',
+list: '<rect x="4.4" y="4.2" width="15.2" height="16.8" rx="2.6" fill="currentColor" fill-opacity=".14"/><path d="M4.4 8.4h15.2" /><path d="M9 4.2h6v2.6a1.3 1.3 0 0 1-1.3 1.3h-3.4A1.3 1.3 0 0 1 9 6.8z" fill="currentColor" fill-opacity=".42"/><rect x="4.4" y="4.2" width="15.2" height="16.8" rx="2.6"/><path d="M8 11.8h8M8 14.8h8M8 17.8h4.6" stroke-width="1.6"/>',
+chart: '<path d="M3.4 20.6h17.2" stroke-width="1.7"/><rect x="5.2" y="12.4" width="3.8" height="6.8" rx="1.3" fill="currentColor" fill-opacity=".22"/><rect x="10.1" y="7" width="3.8" height="12.2" rx="1.3" fill="currentColor" fill-opacity=".44"/><rect x="15" y="14.8" width="3.8" height="4.4" rx="1.3" fill="currentColor" fill-opacity=".22"/><rect x="5.2" y="12.4" width="3.8" height="6.8" rx="1.3"/><rect x="10.1" y="7" width="3.8" height="12.2" rx="1.3"/><rect x="15" y="14.8" width="3.8" height="4.4" rx="1.3"/>',
+doc: '<path d="M6.2 3.4h7.2l5.2 5.2V19a1.9 1.9 0 0 1-1.9 1.9H6.2A1.9 1.9 0 0 1 4.3 19V5.3A1.9 1.9 0 0 1 6.2 3.4z" fill="currentColor" fill-opacity=".13"/><path d="M13.4 3.4v3.8a1.4 1.4 0 0 0 1.4 1.4h3.8" fill="currentColor" fill-opacity=".34"/><path d="M6.2 3.4h7.2l5.2 5.2V19a1.9 1.9 0 0 1-1.9 1.9H6.2A1.9 1.9 0 0 1 4.3 19V5.3A1.9 1.9 0 0 1 6.2 3.4z"/><path d="M7.8 12.6h7M7.8 15.8h7M7.8 18.8h4" stroke-width="1.6"/>',
+car: '<path d="M4.6 14.8v-.8c0-.8.4-1.5 1.1-1.9l1.8-.9 1.8-3.3A2.6 2.6 0 0 1 11.6 6.6h3.2a2.6 2.6 0 0 1 2.3 1.3l1.8 3.3 1.8.9c.7.4 1.1 1.1 1.1 1.9v.8z" fill="currentColor" fill-opacity=".16"/><path d="M4.6 14.8v-.8c0-.8.4-1.5 1.1-1.9l1.8-.9 1.8-3.3A2.6 2.6 0 0 1 11.6 6.6h3.2a2.6 2.6 0 0 1 2.3 1.3l1.8 3.3 1.8.9c.7.4 1.1 1.1 1.1 1.9v.8"/><path d="M7.9 9.4h5.4l1.5 3H6.6z" fill="currentColor" fill-opacity=".3" stroke="none"/><path d="M4.4 14.8h1.2M18.4 14.8h1.2" stroke-width="1.6"/><circle cx="8.6" cy="15.6" r="2.3" fill="#fff"/><circle cx="15.4" cy="15.6" r="2.3" fill="#fff"/><circle cx="8.6" cy="15.6" r="2.3"/><circle cx="15.4" cy="15.6" r="2.3"/><circle cx="8.6" cy="15.6" r=".85" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.6" r=".85" fill="currentColor" stroke="none"/>',
+users: '<circle cx="9.4" cy="8.6" r="3.5" fill="currentColor" fill-opacity=".24"/><path d="M3.2 19.8a6.2 6.2 0 0 1 12.4 0z" fill="currentColor" fill-opacity=".24"/><circle cx="9.4" cy="8.6" r="3.5"/><path d="M3.2 19.8a6.2 6.2 0 0 1 12.4 0"/><path d="M16.4 5.9a2.9 2.9 0 0 1 0 5.6" stroke-width="1.7"/><path d="M17.8 19.8a5.4 5.4 0 0 0-1.1-3.2 4.6 4.6 0 0 1 3.9 2.4" stroke-width="1.7"/>',
+settings: '<circle cx="12" cy="12" r="3.1" fill="currentColor" fill-opacity=".55"/><path d="M10.2 2.9h3.6l.5 2.2 1.9.8 1.9-1.2 2.5 2.5-1.2 1.9.8 1.9 2.2.5v3.6l-2.2.5-.8 1.9 1.2 1.9-2.5 2.5-1.9-1.2-1.9.8-.5 2.2h-3.6l-.5-2.2-1.9-.8-1.9 1.2-2.5-2.5 1.2-1.9-.8-1.9-2.2-.5v-3.6l2.2-.5.8-1.9-1.2-1.9 2.5-2.5 1.9 1.2 1.9-.8z" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="3.1"/>',
+plus: '<circle cx="12" cy="12" r="8.6" fill="currentColor" fill-opacity=".13"/><path d="M12 7.6v8.8M7.6 12h8.8" stroke-width="2"/>',
+menu: '<path d="M4 7.4h16M4 12h16M4 16.6h11" stroke-width="2"/>',
+search: '<circle cx="10.8" cy="10.8" r="6.6" fill="currentColor" fill-opacity=".13"/><circle cx="10.8" cy="10.8" r="6.6" stroke-width="1.9"/><path d="M15.8 15.8 20.4 20.4" stroke-width="2.1" stroke-linecap="round"/>',
+bell: '<path d="M12 3.4a5.6 5.6 0 0 1 5.6 5.6c0 4 1.4 5.2 1.4 5.2H5s1.4-1.2 1.4-5.2A5.6 5.6 0 0 1 12 3.4z" fill="currentColor" fill-opacity=".18"/><path d="M12 3.4a5.6 5.6 0 0 1 5.6 5.6c0 4 1.4 5.2 1.4 5.2H5s1.4-1.2 1.4-5.2A5.6 5.6 0 0 1 12 3.4z"/><path d="M9.9 17.6a2.2 2.2 0 0 0 4.2 0" stroke-width="1.8"/>',
+chevDown: '<path d="m6.6 9.4 5.4 5.4 5.4-5.4" stroke-width="2.1"/>',
+wallet: '<path d="M4.6 8.2h14.8v10.4a1.8 1.8 0 0 1-1.8 1.8H6.4a1.8 1.8 0 0 1-1.8-1.8z" fill="currentColor" fill-opacity=".16"/><path d="M4.6 8.2 15 5a1.7 1.7 0 0 1 2.1 1.2l.3 2" fill="currentColor" fill-opacity=".3"/><path d="M4.6 8.2 15 5a1.7 1.7 0 0 1 2.1 1.2l.3 2"/><path d="M4.6 8.2h14.8v10.4a1.8 1.8 0 0 1-1.8 1.8H6.4a1.8 1.8 0 0 1-1.8-1.8z"/><rect x="13" y="11.4" width="7.6" height="4.6" rx="1.7" fill="currentColor" fill-opacity=".3"/><circle cx="16.8" cy="13.7" r="1.15" fill="currentColor" stroke="none"/><path d="M7.4 13.7h3.4" stroke-width="1.5" stroke-opacity=".6"/>',
+route: '<path d="M5.4 20.4c3.4-.8 4.6-3.8 4.6-7 0-3.2 1.4-5.4 4.2-5.4" fill="none" stroke-width="3.6" stroke-opacity=".16"/><path d="M5.4 20.4c3.4-.8 4.6-3.8 4.6-7 0-3.2 1.4-5.4 4.2-5.4" fill="none" stroke-width="1.6" stroke-dasharray="2.6 2.6"/><circle cx="4.4" cy="20.8" r="2" fill="currentColor"/><path d="M17.4 11.8c-2.1 0-3.8-1.7-3.8-3.8s1.7-3.8 3.8-3.8 3.8 1.7 3.8 3.8c0 2.5-2.6 5.1-3.8 6.3z" fill="var(--accent)" fill-opacity=".22" stroke="var(--accent)" stroke-width="1.5"/><circle cx="17.4" cy="8" r="1.3" fill="var(--accent)" stroke="none"/>',
+trend: '<path d="M3.4 20.6h17.2" stroke-width="1.6"/><path d="M4.4 16.4 9 11.4l3.4 2.8 6.6-7.6" stroke-width="2"/><path d="M19 6.6h-4.6M19 6.6v4.4" stroke-width="2"/>',
+bolt: '<path d="M13.4 2.8 5.6 13.4h5.2l-1.2 7.8 8.2-10.8h-5.4z" fill="var(--accent)" fill-opacity=".22" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/>',
+alert: '<path d="M12 3.6 21.2 19.4a1.6 1.6 0 0 1-1.4 2.4H4.2a1.6 1.6 0 0 1-1.4-2.4z" fill="currentColor" fill-opacity=".14"/><path d="M12 3.6 21.2 19.4a1.6 1.6 0 0 1-1.4 2.4H4.2a1.6 1.6 0 0 1-1.4-2.4z"/><path d="M12 9.4v4.6" stroke-width="1.9"/><circle cx="12" cy="18" r="1.15" fill="currentColor" stroke="none"/>',
+info: '<circle cx="12" cy="12" r="8.7" fill="currentColor" fill-opacity=".13"/><circle cx="12" cy="12" r="8.7"/><path d="M12 11v5.2" stroke-width="1.9"/><circle cx="12" cy="7.9" r="1.2" fill="currentColor" stroke="none"/>',
+check: '<circle cx="12" cy="12" r="8.7" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="8.7"/><path d="m8 12.4 2.7 2.7L16.2 9.6" stroke-width="2.1"/>',
+x: '<circle cx="12" cy="12" r="8.7" fill="currentColor" fill-opacity=".13"/><path d="m8.8 8.8 6.4 6.4M15.2 8.8l-6.4 6.4" stroke-width="2"/>',
+edit: '<path d="M4.6 19.4h3.2L19 8.2a2 2 0 0 0 0-2.8l-.4-.4a2 2 0 0 0-2.8 0L4.6 16.2z" fill="currentColor" fill-opacity=".15"/><path d="M4.6 19.4h3.2L19 8.2a2 2 0 0 0 0-2.8l-.4-.4a2 2 0 0 0-2.8 0L4.6 16.2z"/><path d="m14.4 6.6 3 3M4.6 16.2v3.2" stroke-width="1.6"/>',
+trash: '<path d="M5.6 6.6h12.8V19a1.9 1.9 0 0 1-1.9 1.9H7.5A1.9 1.9 0 0 1 5.6 19z" fill="currentColor" fill-opacity=".14"/><path d="M5.6 6.6h12.8V19a1.9 1.9 0 0 1-1.9 1.9H7.5A1.9 1.9 0 0 1 5.6 19z"/><path d="M3.6 6.6h16.8" stroke-width="1.9"/><path d="M9.4 4.1h5.2"/><path d="M9.8 10.2v7M14.2 10.2v7" stroke-width="1.5" stroke-opacity=".65"/>',
+download: '<path d="M4.4 15.4v2.8a2 2 0 0 0 2 2h11.2a2 2 0 0 0 2-2v-2.8" stroke-width="1.9"/><path d="M12 3.4v9.8" stroke-width="2"/><path d="m8.2 9.6 3.8 3.8 3.8-3.8" stroke-width="2"/><rect x="4.4" y="16.4" width="15.2" height="3.8" rx="1.4" fill="currentColor" fill-opacity=".14" stroke="none"/>',
+save: '<path d="M5.4 3.8h10L19 7.2v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.8a1 1 0 0 1 1-1z" fill="currentColor" fill-opacity=".14"/><path d="M5.4 3.8h10L19 7.2v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.8a1 1 0 0 1 1-1z"/><path d="M8.4 3.8h6.2v4.6H8.4z" fill="currentColor" fill-opacity=".34"/><rect x="8" y="13.4" width="8" height="7.8" rx="1.2" fill="currentColor" fill-opacity=".18"/><path d="M8 13.4h8v7.8H8z"/>',
+pdf: '<path d="M6.2 3.4h7.2l5.2 5.2V19a1.9 1.9 0 0 1-1.9 1.9H6.2A1.9 1.9 0 0 1 4.3 19V5.3A1.9 1.9 0 0 1 6.2 3.4z" fill="currentColor" fill-opacity=".13"/><path d="M13.4 3.4v3.8a1.4 1.4 0 0 0 1.4 1.4h3.8" fill="currentColor" fill-opacity=".34"/><path d="M6.2 3.4h7.2l5.2 5.2V19a1.9 1.9 0 0 1-1.9 1.9H6.2A1.9 1.9 0 0 1 4.3 19V5.3A1.9 1.9 0 0 1 6.2 3.4z"/><rect x="6.8" y="12.2" width="3" height="2.8" rx=".8" fill="currentColor" fill-opacity=".6" stroke="none"/><rect x="10.6" y="12.2" width="3" height="2.8" rx=".8" fill="currentColor" fill-opacity=".32" stroke="none"/><rect x="14.4" y="12.2" width="3" height="2.8" rx=".8" fill="currentColor" fill-opacity=".32" stroke="none"/><path d="M7.6 17.6h8.8" stroke-width="1.4" stroke-opacity=".5"/>',
+print: '<rect x="6.4" y="3.6" width="11.2" height="5.4" rx="1.2" fill="currentColor" fill-opacity=".2"/><rect x="3.6" y="8.6" width="16.8" height="8" rx="2" fill="currentColor" fill-opacity=".14"/><rect x="3.6" y="8.6" width="16.8" height="8" rx="2"/><rect x="6.6" y="14.4" width="10.8" height="6.4" rx="1.3" fill="#fff"/><rect x="6.6" y="14.4" width="10.8" height="6.4" rx="1.3"/><path d="M6.4 3.6h11.2v5.4" /><circle cx="17" cy="11.4" r="1" fill="currentColor" stroke="none"/>',
+eye: '<path d="M12 6.2c5.4 0 8.8 5.8 8.8 5.8s-3.4 5.8-8.8 5.8S3.2 12 3.2 12 6.6 6.2 12 6.2z" fill="currentColor" fill-opacity=".13"/><path d="M12 6.2c5.4 0 8.8 5.8 8.8 5.8s-3.4 5.8-8.8 5.8S3.2 12 3.2 12 6.6 6.2 12 6.2z"/><circle cx="12" cy="12" r="3.1" fill="currentColor" fill-opacity=".28"/><circle cx="12" cy="12" r="3.1"/>',
+refresh: '<path d="M20 12a8 8 0 0 1-13.9 5.4" stroke-width="1.9"/><path d="M4 12a8 8 0 0 1 13.9-5.4" stroke-width="1.9"/><path d="M4 7.4V12h4.6" stroke-width="1.9"/><path d="M20 16.6V12h-4.6" stroke-width="1.9"/>',
+sparkle: '<path d="M11.4 3.2 13.6 9l5.8 2.2-5.8 2.2-2.2 5.8-2.2-5.8L3.4 11.2 9.2 9z" fill="var(--accent)" fill-opacity=".22" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><path d="M18.4 15.4l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" fill="var(--accent)" fill-opacity=".35" stroke="var(--accent)" stroke-width="1.2"/>',
+calendar: '<rect x="3.4" y="5.4" width="17.2" height="15.2" rx="2.4" fill="currentColor" fill-opacity=".12"/><path d="M3.4 10.2h17.2" /><path d="M3.4 7.8A2.4 2.4 0 0 1 5.8 5.4h12.4a2.4 2.4 0 0 1 2.4 2.4v.6H3.4z" fill="currentColor" fill-opacity=".34" stroke="none"/><rect x="3.4" y="5.4" width="17.2" height="15.2" rx="2.4"/><path d="M7.6 3.2v3.4M16.4 3.2v3.4" stroke-width="1.9"/><rect x="7" y="13" width="3.4" height="3.2" rx="1" fill="currentColor" fill-opacity=".55" stroke="none"/><rect x="13.6" y="13" width="3.4" height="3.2" rx="1" fill="currentColor" fill-opacity=".24" stroke="none"/>',
+shield: '<path d="M12 3.2 19.6 6v6.2c0 4.6-3.2 8-7.6 9-4.4-1-7.6-4.4-7.6-9V6z" fill="currentColor" fill-opacity=".14"/><path d="M12 3.2 19.6 6v6.2c0 4.6-3.2 8-7.6 9-4.4-1-7.6-4.4-7.6-9V6z"/><path d="M12 8.4v4.2" stroke-width="1.8"/><circle cx="12" cy="15.6" r="1.1" fill="currentColor" stroke="none"/>',
+shieldCheck: '<path d="M12 3.2 19.6 6v6.2c0 4.6-3.2 8-7.6 9-4.4-1-7.6-4.4-7.6-9V6z" fill="currentColor" fill-opacity=".14"/><path d="M12 3.2 19.6 6v6.2c0 4.6-3.2 8-7.6 9-4.4-1-7.6-4.4-7.6-9V6z"/><path d="m8.6 11.8 2.4 2.4 4.4-4.6" stroke-width="2"/>',
+briefcase: '<rect x="3.4" y="7.2" width="17.2" height="12.6" rx="2.4" fill="currentColor" fill-opacity=".14"/><rect x="3.4" y="7.2" width="17.2" height="12.6" rx="2.4"/><path d="M8.6 7.2V5.6a2 2 0 0 1 2-2h2.8a2 2 0 0 1 2 2v1.6" stroke-width="1.8"/><path d="M3.4 12.2h17.2" stroke-width="1.5" stroke-opacity=".6"/><rect x="10.4" y="11" width="3.2" height="2.6" rx="1" fill="currentColor" fill-opacity=".5" stroke="none"/>',
+gauge: '<path d="M3.6 18.6a8.4 8.4 0 0 1 16.8 0z" fill="currentColor" fill-opacity=".1"/><path d="M3.6 18.6a8.4 8.4 0 0 1 16.8 0"/><path d="M5.2 18.6H3.6M6.6 14.2l-1.1-1.1M12 11.8V10.2M17.4 14.2l1.1-1.1M18.8 18.6h1.6" stroke-width="1.4" stroke-opacity=".7"/><path d="M12 18.6l4.3-6.2" stroke="var(--accent)" stroke-width="2.2"/><circle cx="12" cy="18.6" r="1.6" fill="currentColor" stroke="none"/><path d="M3 21h18" stroke-width="1.5" stroke-opacity=".45"/>',
+fuel: '<path d="M4.8 20.6V5.4a2 2 0 0 1 2-2h5.6a2 2 0 0 1 2 2v15.2z" fill="currentColor" fill-opacity=".14"/><path d="M4.8 20.6V5.4a2 2 0 0 1 2-2h5.6a2 2 0 0 1 2 2v15.2"/><path d="M3.2 20.6h13.2" stroke-width="1.9"/><rect x="7" y="6.6" width="5.2" height="4.6" rx="1.2" fill="currentColor" fill-opacity=".38" stroke="none"/><path d="M14.4 8.6h1.8a2.4 2.4 0 0 1 2.4 2.4v4.6a1.8 1.8 0 0 0 3.6 0v-3.2" stroke-width="1.7"/><path d="M20.6 12.4h1.8" stroke-width="1.7"/>',
+clock: '<circle cx="12" cy="12" r="8.7" fill="currentColor" fill-opacity=".13"/><circle cx="12" cy="12" r="8.7"/><path d="M12 5.4v1.5M12 17.1v1.5M5.4 12h1.5M17.1 12h1.5" stroke-width="1.4" stroke-opacity=".6"/><path d="M12 7.8V12l3.2 2" stroke-width="1.9"/>',
+arrowUp: '<circle cx="12" cy="12" r="8.7" fill="currentColor" fill-opacity=".12"/><path d="M12 17.4V7.2" stroke-width="2"/><path d="m7.8 11.2 4.2-4 4.2 4" stroke-width="2"/>',
+arrowDown: '<circle cx="12" cy="12" r="8.7" fill="currentColor" fill-opacity=".12"/><path d="M12 6.6v10.2" stroke-width="2"/><path d="m7.8 12.8 4.2 4 4.2-4" stroke-width="2"/>',
+filter: '<path d="M3.6 5.4h16.8l-6.6 7.6v6.2l-3.6-2.2v-4z" fill="currentColor" fill-opacity=".16"/><path d="M3.6 5.4h16.8l-6.6 7.6v6.2l-3.6-2.2v-4z"/>',
+user: '<circle cx="12" cy="8.4" r="3.9" fill="currentColor" fill-opacity=".24"/><circle cx="12" cy="8.4" r="3.9"/><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0z" fill="currentColor" fill-opacity=".24"/><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0"/>',
+arrowRight: '<path d="M4.6 12h13" stroke-width="2"/><path d="m12.4 6.8 5.2 5.2-5.2 5.2" stroke-width="2"/>',
+building: '<path d="M4.6 20.4V4.8a1.6 1.6 0 0 1 1.6-1.6h7.6a1.6 1.6 0 0 1 1.6 1.6v15.6z" fill="currentColor" fill-opacity=".14"/><path d="M4.6 20.4V4.8a1.6 1.6 0 0 1 1.6-1.6h7.6a1.6 1.6 0 0 1 1.6 1.6v15.6"/><path d="M15.4 20.4V9.6h2.6a1.6 1.6 0 0 1 1.6 1.6v9.2" /><path d="M2.8 20.4h18.4" stroke-width="1.9"/><rect x="7.2" y="6.4" width="2.6" height="2.6" rx=".7" fill="currentColor" fill-opacity=".5" stroke="none"/><rect x="11.4" y="6.4" width="2" height="2.6" rx=".7" fill="currentColor" fill-opacity=".3" stroke="none"/><rect x="7.2" y="11.2" width="2.6" height="2.6" rx=".7" fill="currentColor" fill-opacity=".3" stroke="none"/><rect x="11.4" y="11.2" width="2" height="2.6" rx=".7" fill="currentColor" fill-opacity=".3" stroke="none"/>',
+logout: '<path d="M10.4 4.2H6.6a2.2 2.2 0 0 0-2.2 2.2v11.2a2.2 2.2 0 0 0 2.2 2.2h3.8" stroke-width="1.9"/><path d="M14.4 8.4 18.8 12l-4.4 3.6" stroke-width="1.9"/><path d="M9.6 12h9" stroke-width="1.9"/>',
+lock: '<rect x="4.6" y="10.2" width="14.8" height="10.2" rx="2.4" fill="currentColor" fill-opacity=".15"/><rect x="4.6" y="10.2" width="14.8" height="10.2" rx="2.4"/><path d="M8 10.2V7.8a4 4 0 0 1 8 0v2.4" stroke-width="1.9"/><circle cx="12" cy="15" r="1.4" fill="currentColor" stroke="none"/><path d="M12 16.2v1.8" stroke-width="1.6"/>',
+key: '<circle cx="8" cy="15.6" r="4.2" fill="currentColor" fill-opacity=".16"/><circle cx="8" cy="15.6" r="4.2"/><circle cx="8" cy="15.6" r="1.4" fill="currentColor" stroke="none"/><path d="m11.2 12.6 7.4-7.4M16.4 7.4l2.2 2.2M14.2 9.6l1.8 1.8" stroke-width="1.8"/>',
+eyeOff: '<path d="M4 4.4 20 20.4" stroke-width="1.9"/><path d="M9.4 9.6a3.1 3.1 0 0 0 4.3 4.4" stroke-width="1.7"/><path d="M6.6 6.8A15.6 15.6 0 0 0 3.2 12s3.4 5.8 8.8 5.8c1.7 0 3.2-.6 4.5-1.4M15.2 7.4A10 10 0 0 1 20.8 12a17 17 0 0 1-2.4 3.2" stroke-width="1.7"/>',
+minus: '<path d="M5.6 12h12.8" stroke-width="2"/>',
+chevRight: '<path d="m9.4 6.6 5.4 5.4-5.4 5.4" stroke-width="2.1"/>',
+userCog: '<circle cx="9.4" cy="8.2" r="3.6" fill="currentColor" fill-opacity=".22"/><circle cx="9.4" cy="8.2" r="3.6"/><path d="M2.8 20a6.6 6.6 0 0 1 11.2-4.6" stroke-width="1.8"/><circle cx="17.6" cy="17.4" r="3" fill="currentColor" fill-opacity=".18"/><circle cx="17.6" cy="17.4" r="3"/><path d="M17.6 14v.9M17.6 19.9v.9M14.2 17.4h.9M20.1 17.4h.9" stroke-width="1.3"/>'
+};
+
+function ic(name, attrs){
+  const p = ICONS[name] || ICONS.info;
+  return '<svg class="ic"'+(attrs? " "+attrs:"")+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
+}
+function hydrateBrand(root){
+  (root||document).querySelectorAll("[data-logo-track]").forEach(el=>{ if(!el.src) el.src = LOGOS.track.uri; });
+}
+function hydrateIcons(root){
+  (root||document).querySelectorAll("[data-ico]").forEach(el=>{
+    const n = el.getAttribute("data-ico");
+    /* repli sûr : une icône inconnue affiche l'icône d'information, jamais un cadre vide */
+    el.innerHTML = ic(ICONS[n]? n : "info");
+  });
+}
+
+/* ------------------------------ 2. LOGOS SERVICES ------------------------------ */
+const LOGOS = {
+  /* placeholders remplacés au build par des data-URI (webp / jpeg) */
+  tech : { uri:"__LOGO_TECH__",   w:__W_TECH__,   h:__H_TECH__   },
+  direction:{ uri:"__LOGO_DIR__", w:__W_DIR__, h:__H_DIR__ },   /* photo du responsable */
+  encaci:{ uri:"__LOGO_ENCACI__", w:__W_ENCACI__, h:__H_ENCACI__ },
+  form : { uri:"__LOGO_FORM__",   w:__W_FORM__,   h:__H_FORM__   },
+  track: { uri:"__LOGO_TRACK__",  w:__W_LOGO_TRACK__, h:__H_LOGO_TRACK__ }, /* logo officiel (interface) */
+  head : { uri:"__LOGO_HEAD__",   w:__W_HEAD__,   h:__H_HEAD__   }          /* logo officiel (PDF, fond blanc) */
+};
+const LOGO_BYTES = {};
+function logoBytes(key){
+  if(!LOGO_BYTES[key]){
+    const bin = atob(LOGOS[key].uri.split(",")[1]);
+    const arr = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    LOGO_BYTES[key]=arr;
+  }
+  return LOGO_BYTES[key];
+}
+
+/* ------------------------------ 3. RÉFÉRENTIELS ------------------------------ */
+const SERVICES = [
+  { id:"DIRECTION", code:"DIR", name:"M. WILFRIED GADOU", short:"Direction",
+    role:"Direction Générale", color:"#4A2A63", color2:"#4A2A63", logo:"direction", icon:"user" },
+  { id:"TECHNOLOGY", code:"TEC", name:"VOOMNET TECHNOLOGY", short:"Technology",
+    role:"Service Technique", color:"#6B4A82", color2:"#6B4A82", logo:"tech", icon:"settings" },
+  { id:"ENCACI", code:"ENC", name:"ENCACI", short:"ENCACI",
+    role:"Service Partenaire", color:"#9A7A15", color2:"#C9A227", logo:"encaci", icon:"building" },
+  { id:"FORMATION", code:"FOR", name:"VOOMNET FORMATION", short:"Formation",
+    role:"Service Formation", color:"#A98A1F", color2:"#C9A227", logo:"form", icon:"users" }
+];
+const DEFAULT_TRANSPORTS = [
+  "Taxi (ville)","Taxi collectif / Woro-woro","Gbaka / Minicar","Bus (SOTRA)",
+  "Moto-taxi","Véhicule personnel (carburant)","Location de véhicule","Péage / Frais routiers",
+  "Avion","Train","Bateau / Pinasse","Autre"
+];
+const MOTIFS = [
+  "Livraison client","Installation technique","Maintenance / Dépannage","Prospection commerciale",
+  "Encaissement client","Session de formation","Réunion / Rendez-vous","Achat de matériel",
+  "Dépôt de dossier administratif","Intervention urgente","Autre"
+];
+const VEHICLE_TYPES = ["Berline","Pick-up","Utilitaire","Citadine","4x4","Moto","Camionnette","Autre"];
+const VEHICLE_STATES = ["Disponible","En mission","Maintenance","Hors service"];
+const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const MONTHS_SHORT = ["Jan","Fév","Mar","Avr","Mai","Juin","Juil","Août","Sep","Oct","Nov","Déc"];
+const DOW_FR = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+
+/* ------------------------------ 4. UTILITAIRES ------------------------------ */
+const $  = (s,r)=> (r||document).querySelector(s);
+const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+const pad = n => String(n).padStart(2,"0");
+const todayISO = () => { const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
+const monthOf  = iso => (iso||"").slice(0,7);
+const currentMonth = () => todayISO().slice(0,7);
+const nf = new Intl.NumberFormat("fr-FR");
+const fmtN = n => nf.format(Math.round(Number(n)||0));
+const fmtMoney = n => fmtN(n)+" "+DB.params.devise;
+function fmtShort(n){ n=Number(n)||0;
+  if(n>=1000000) return (n/1000000).toFixed(n>=10000000?0:1).replace(".",",")+" M";
+  if(n>=1000)    return Math.round(n/1000)+" k";
+  return fmtN(n); }
+function monthLabel(m){ const [y,mm]=m.split("-"); return MONTHS_FR[Number(mm)-1]+" "+y; }
+function monthShortLabel(m){ const [y,mm]=m.split("-"); return MONTHS_SHORT[Number(mm)-1]+" "+y.slice(2); }
+function dateFR(iso){ if(!iso) return "—"; const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
+function dateLongFR(iso){ if(!iso) return "—"; const [y,m,d]=iso.split("-");
+  const dt=new Date(Number(y),Number(m)-1,Number(d));
+  const j=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"][dt.getDay()];
+  return j+" "+Number(d)+" "+MONTHS_FR[Number(m)-1].toLowerCase()+" "+y; }
+function shiftMonth(m,delta){ const [y,mm]=m.split("-").map(Number); const d=new Date(y,mm-1+delta,1);
+  return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+function monthRange(end,count){ const out=[]; for(let i=count-1;i>=0;i--) out.push(shiftMonth(end,-i)); return out; }
+function uid(pfx){ return (pfx||"D")+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,6).toUpperCase(); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function svc(id){ return SERVICES.find(s=>s.id===id) || SERVICES[0]; }
+function initials(name){
+  const parts=String(name||"").replace(/^(M\.|Mme|Mlle|Dr)\s*/i,"").trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]||"?")[0]+((parts[1]||"")[0]||"")).toUpperCase();
+}
+function hexA(hex,a){
+  const h=String(hex||"#4A2A63").replace("#","");
+  const n=parseInt(h.length===3? h.split("").map(c=>c+c).join(""):h,16);
+  return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")";
+}
+function trunc(s,n){ s=String(s||""); return s.length>n? s.slice(0,n-1)+"…" : s; }
+const PALETTE = ["#6B4A82","#4A2A63","#C9A227","#5A93B8","#8E76A3","#E2C866","#43A982","#B98CA8","#A98A1F","#7E5C97","#5FA8A0","#C98B8B"];
+
+/* ------------------------------ 5. TOASTS & MODALS ------------------------------ */
+function toast(title,msg,type){
+  const el=document.createElement("div");
+  el.className="toast "+(type||"");
+  const ico = type==="err"?"alert":type==="ok"?"check":"info";
+  el.innerHTML = ic(ico)+"<div><b>"+esc(title)+"</b>"+esc(msg||"")+"</div>";
+  $("#toasts").appendChild(el);
+  setTimeout(()=>{ el.style.transition=".42s cubic-bezier(.22,.61,.36,1)"; el.style.opacity="0"; el.style.transform="translateX(26px) scale(.98)";
+    setTimeout(()=>el.remove(),430); }, type==="err"?6200:4400);
+}
+function confirmDlg(title, html, onOk, okLabel){
+  const bg=$("#modalBg"), box=$("#modalBox");
+  box.innerHTML =
+   '<header><div><h3>'+esc(title)+'</h3></div><button class="x" data-close>'+ic("x")+'</button></header>'+
+   '<div class="bd">'+html+'</div>'+
+   '<footer><button class="btn btn-ghost" data-close>Annuler</button>'+
+   '<button class="btn btn-primary" id="mOk">'+esc(okLabel||"Confirmer")+'</button></footer>';
+  bg.classList.add("on");
+  $$("[data-close]",bg).forEach(b=>b.onclick=()=>bg.classList.remove("on"));
+  $("#mOk",box).onclick=()=>{ bg.classList.remove("on"); onOk&&onOk(); };
+}
+function closeModal(){ $("#modalBg").classList.remove("on"); }
+/* -------- 5b. ENREGISTREMENT SUR L'APPAREIL (jamais « dans l'application ») ------- */
+function isFramed(){ try{ return window.self!==window.top; }catch(e){ return true; } }
+/* iframe d'aperçu au bac à sable → le navigateur bloque volontairement les téléchargements */
+function sandboxedHere(){
+  if(!isFramed()) return false;
+  try{ void window.top.location.href; return false; }catch(e){ return true; }
+}
+function canSavePicker(){ return !isFramed() && typeof window.showSaveFilePicker==="function"; }
+function mimeType(type,name){
+  if(type==="application/pdf"||/\.pdf$/i.test(name)) return {description:"Document PDF",accept:{"application/pdf":[".pdf"]}};
+  if(/csv/i.test(type||"")||/\.csv$/i.test(name))    return {description:"Fichier CSV (tableur)",accept:{"text/csv":[".csv"]}};
+  if(/json/i.test(type||"")||/\.json$/i.test(name))  return {description:"Sauvegarde JSON",accept:{"application/json":[".json"]}};
+  return null;
+}
+/* 1. TÉLÉCHARGEMENT DIRECT : le fichier part immédiatement dans le dossier
+      « Téléchargements » de l'appareil. Universel, sans boîte de dialogue. */
+function downloadToDevice(blob,filename){
+  try{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download=filename; a.rel="noopener"; a.style.display="none";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); },10000);
+    return true;
+  }catch(e){ return false; }
+}
+/* 2. « ENREGISTRER SOUS » : choix libre du dossier (Bureau, Documents, clé USB).
+      Proposé À LA DEMANDE, car certains navigateurs annulent la boîte automatiquement. */
+async function saveWithPicker(blob,filename){
+  if(!canSavePicker()) return {ok:false,mode:"unsupported"};
+  try{
+    const t=mimeType(blob.type,filename);
+    const handle=await window.showSaveFilePicker(Object.assign({suggestedName:filename}, t?{types:[t]}:{}));
+    const w=await handle.createWritable(); await w.write(blob); await w.close();
+    return {ok:true,mode:"picker",name:handle.name||filename};
+  }catch(err){
+    if(err&&err.name==="AbortError") return {ok:false,mode:"abort"};
+    if(downloadToDevice(blob,filename)) return {ok:true,mode:"download",name:filename,sandboxed:sandboxedHere()};
+    return {ok:false,mode:"error",err:err};
+  }
+}
+/* Enregistre un fichier SUR L'APPAREIL (téléchargement direct par défaut) */
+function saveToDevice(blob,filename){
+  return new Promise(function(resolve){
+    const ok=downloadToDevice(blob,filename);
+    resolve({ok:ok,mode:"download",name:filename,sandboxed:sandboxedHere()});
+  });
+}
+/* Boîte d'aide : quand l'aperçu (iframe) empêche le téléchargement */
+function openSaveHelp(filename,onRetry,blob){
+  const bg=$("#modalBg"), box=$("#modalBox"), url=location.href, framed=isFramed();
+  box.innerHTML =
+   '<header><div><h3>Enregistrer sur votre appareil</h3>'+
+   '<div class="sub">'+esc(filename)+' — le fichier doit arriver dans vos téléchargements, pas rester dans l\'aperçu.</div></div>'+
+   '<button class="x" data-close>'+ic("x")+'</button></header>'+
+   '<div class="bd"><div class="save-steps">'+
+     '<div class="sstep"><span class="n">1</span><div><b>Ouvrez l\'application dans un onglet</b>'+
+     '<div class="tx">'+(framed? 'Vous êtes dans une fenêtre d\'aperçu, qui bloque volontairement les téléchargements. ' : '')+
+     'Cliquez sur le bouton doré ci-dessous : l\'application s\'ouvre normalement dans votre navigateur.</div></div></div>'+
+     '<div class="sstep"><span class="n">2</span><div><b>Cliquez sur « Télécharger le PDF »</b>'+
+     '<div class="tx">Le fichier part alors directement dans le dossier « Téléchargements » de votre appareil. '+
+     'Utilisez « Choisir l\'emplacement… » pour l\'enregistrer sur le Bureau ou une clé USB.</div></div></div>'+
+   '</div>'+
+   '<div class="save-url"><span class="ic" data-ico="key"></span><code id="saveUrlTxt">'+esc(url)+'</code>'+
+   '<button class="btn btn-ghost btn-sm" id="saveUrlCopy">'+ic("doc")+' Copier le lien</button></div></div>'+
+   '<footer><button class="btn btn-ghost" data-close>Fermer</button>'+
+   (canSavePicker()? '<button class="btn btn-primary" id="savePicker">'+ic("save")+' Choisir l\'emplacement…</button>' : '')+
+   (blob? '<button class="btn btn-ghost" id="saveRetry">'+ic("download")+' Réessayer ici</button>' : '')+
+   '<a class="btn btn-gold" href="'+esc(url)+'" target="_blank" rel="noopener">'+ic("arrowRight")+' Ouvrir dans un onglet</a></footer>';
+  hydrateIcons(box); bg.classList.add("on");
+  $$("[data-close]",bg).forEach(function(b){ b.onclick=function(){ bg.classList.remove("on"); }; });
+  const cp=$("#saveUrlCopy",box);
+  if(cp) cp.onclick=async function(){
+    try{ await navigator.clipboard.writeText(url); toast("Lien copié","Collez-le dans la barre d'adresse de votre navigateur.","ok"); }
+    catch(e){ const t=$("#saveUrlTxt",box); const r=document.createRange(); r.selectNodeContents(t);
+      const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Lien sélectionné","Appuyez sur Ctrl+C pour le copier.","info"); }
+  };
+  const rt=$("#saveRetry",box);
+  if(rt) rt.onclick=function(){ bg.classList.remove("on"); onRetry&&onRetry(); };
+  const sp=$("#savePicker",box);
+  if(sp&&blob) sp.onclick=async function(){
+    const r=await saveWithPicker(blob,filename);
+    if(r.mode==="abort") return;
+    if(r.ok){ bg.classList.remove("on"); toast("Enregistré sur votre appareil ✅",(r.name||filename)+" — à l'emplacement choisi."); }
+    else toast("Enregistrement impossible","Utilisez « Ouvrir dans un onglet » puis le bouton doré.","err");
+  };
+}
+/* Raccourci commun : enregistre puis message adapté (et aide si l'aperçu bloque) */
+function saveAndTell(blob,filename,onRetry){
+  return saveToDevice(blob,filename).then(function(res){
+    const ko=Math.round(blob.size/1024);
+    if(res.ok&&!res.sandboxed) toast("Enregistré sur votre appareil ✅", filename+" ("+ko+" Ko) → dossier « Téléchargements ».");
+    else if(res.ok) { toast("Téléchargement lancé","Si le fichier n'arrive pas, ouvrez l'application dans un onglet.","info"); openSaveHelp(filename,onRetry,blob); }
+    else { openSaveHelp(filename,onRetry,blob); toast("2 étapes pour enregistrer","L'aperçu bloque les téléchargements : ouvrez l'application dans un onglet.","info"); }
+    return res;
+  });
+}
+/* Compat : ancien nom conservé */
+function downloadBlob(blob,filename){
+  try{ const url=URL.createObjectURL(blob); const a=document.createElement("a");
+    a.href=url; a.download=filename; a.rel="noopener"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); },8000); return true; }catch(e){ return false; }
+}
+
+/* ------------------------------ 6. STOCKAGE ------------------------------ */
+const Store = (()=>{
+  const KEY="voomnet_track_v2";
+  const LEGACY="voomnet_depenses_v1";
+  let mode="memory", mem=null;
+  try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); mode="local"; }catch(e){ mode="memory"; }
+  function read(){
+    if(mode==="local"){
+      try{
+        let raw=localStorage.getItem(KEY);
+        if(!raw){ raw=localStorage.getItem(LEGACY); }      /* migration douce v1 → v2 */
+        return raw? JSON.parse(raw) : null;
+      }catch(e){ return null; }
+    }
+    return mem;
+  }
+  function write(obj){
+    if(mode==="local"){ try{ localStorage.setItem(KEY, JSON.stringify(obj)); return true; }catch(e){ return false; } }
+    mem=obj; return true;
+  }
+  return { mode, read, write };
+})();
+
+/* --------------------- 6 bis. COMPTES D'ACCÈS (RH & ADMINISTRATEUR) ---------------------
+   Deux comptes distincts, identifiants et mots de passe modifiables dans Paramètres.
+   Les mots de passe ne sont jamais conservés en clair (empreinte locale non réversible).
+   --------------------------------------------------------------------------------------- */
+/* Les mots de passe par défaut ne figurent JAMAIS en clair dans ce fichier :
+   seules des empreintes non réversibles (FNV-1a salée) sont embarquées. */
+const ACCOUNT_DEFAULTS = [
+  { id:"rh",    login:"rh",    label:"Service Ressources Humaines", role:"Responsable RH",
+    admin:false, hash:"6e6b4ab8" },
+  { id:"admin", login:"admin", label:"Administrateur VOOMNET",      role:"Administrateur RH",
+    admin:true,  hash:"460c9900" }
+];
+/* empreinte locale (FNV-1a salée) : suffisante pour une application hors ligne */
+function hashPwd(str){
+  let h=0x811c9dc5; const txt="vt2026::"+(str||"");
+  for(let i=0;i<txt.length;i++){ h ^= txt.charCodeAt(i); h = (h*0x01000193)>>>0; }
+  return ("00000000"+h.toString(16)).slice(-8);
+}
+function defaultAccounts(){
+  return ACCOUNT_DEFAULTS.map(a=>({ id:a.id, login:a.login, label:a.label, role:a.role,
+    admin:!!a.admin, hash:a.hash }));
+}
+/* ACCOUNT_HINTS supprimé : aucun identifiant n'est exposé dans l'interface. */
+
+/* ------------------------------ 7. BASE DE DONNÉES ------------------------------ */
+const DB = {
+  trips:[], agents:[], transports:[], vehicles:[], params:{}, meta:{}, user:{}, accounts:[],
+  load(){
+    const d = Store.read() || {};
+    this.trips      = Array.isArray(d.trips)? d.trips : [];
+    this.agents     = Array.isArray(d.agents)&&d.agents.length? d.agents : defaultAgents();
+    this.transports = Array.isArray(d.transports)&&d.transports.length? d.transports : DEFAULT_TRANSPORTS.slice();
+    this.vehicles   = Array.isArray(d.vehicles)&&d.vehicles.length? d.vehicles : defaultVehicles();
+    this.accounts   = Array.isArray(d.accounts)&&d.accounts.length? d.accounts : defaultAccounts();
+    /* Migration : l'ancien service VOOMSTORE devient ENCACI (aucune donnée perdue) */
+    (function(){
+      const ren = x => { if(x && x.service === "VOOMSTORE") x.service = "ENCACI"; };
+      const listes = [this.trips, this.agents, this.vehicles];
+      listes.forEach(l => { if(Array.isArray(l)) l.forEach(ren); });
+      if(this.params && this.params.services === undefined) { /* rien à faire */ }
+    }).call(this);
+    this.meta       = d.meta || {};
+    this.user       = Object.assign({ name:"Utilisateur VOOMNET", role:"Consultation" }, d.user||{});
+    this.params     = Object.assign({
+      nom:"VOOMNET", slogan:"Votre partenaire à votre service", ville:"Abidjan – Côte d'Ivoire",
+      tel:"+225 · contact@voomnet.ci", devise:"FCFA"
+    }, d.params||{});
+  },
+  save(){ return Store.write({ trips:this.trips, agents:this.agents, transports:this.transports,
+    vehicles:this.vehicles, params:this.params, meta:this.meta, user:this.user, accounts:this.accounts }); },
+  addTrip(t){ t.id=uid("D"); t.created=new Date().toISOString(); this.trips.push(t); this.save(); },
+  updateTrip(id,patch){ const i=this.trips.findIndex(t=>t.id===id); if(i>-1){ Object.assign(this.trips[i],patch); this.save(); } },
+  removeTrip(id){ this.trips=this.trips.filter(t=>t.id!==id); this.save(); },
+  addVehicle(v){ v.id=uid("V"); this.vehicles.push(v); this.save(); },
+  updateVehicle(id,patch){ const v=this.vehicles.find(x=>x.id===id); if(v){ Object.assign(v,patch); this.save(); } },
+  removeVehicle(id){ this.vehicles=this.vehicles.filter(v=>v.id!==id); this.save(); }
+};
+function defaultAgents(){
+  return [
+    { nom:"M. WILFRIED GADOU", service:"DIRECTION", actif:true },
+    { nom:"M. KOFFI Jean-Marc", service:"TECHNOLOGY", actif:true },
+    { nom:"Mme BAMBA Aïcha", service:"ENCACI", actif:true },
+    { nom:"M. TRAORÉ Ibrahim", service:"FORMATION", actif:true }
+  ];
+}
+function defaultVehicles(){
+  return [
+    { id:uid("V"), plate:"AA-1234-CI", marque:"Toyota", modele:"Hilux", type:"Pick-up", annee:2021, km:84600, service:"TECHNOLOGY", state:"En mission", entretien:"2026-11-15", note:"" },
+    { id:uid("V"), plate:"BB-9087-CI", marque:"Hyundai", modele:"Accent", type:"Berline", annee:2019, km:132400, service:"ENCACI", state:"Disponible", entretien:"2026-10-28", note:"" },
+    { id:uid("V"), plate:"CC-4455-CI", marque:"Yamaha", modele:"XTZ 125", type:"Moto", annee:2022, km:21350, service:"FORMATION", state:"Disponible", entretien:"2026-12-05", note:"" },
+    { id:uid("V"), plate:"DD-7712-CI", marque:"Renault", modele:"Kangoo", type:"Camionnette", annee:2018, km:158900, service:"ENCACI", state:"Maintenance", entretien:"2026-10-09", note:"Révision boîte de vitesses" }
+  ];
+}
+
+/* ------------------------------ 8. AGRÉGATIONS ------------------------------ */
+function tripsOf(month, serviceId, agent){
+  return DB.trips.filter(t=>{
+    if(month && monthOf(t.date)!==month) return false;
+    if(serviceId && t.service!==serviceId) return false;
+    if(agent && (t.agent||"").toLowerCase().indexOf(String(agent).toLowerCase())<0) return false;
+    return true;
+  }).sort((a,b)=> (a.date<b.date?1:a.date>b.date?-1:0));
+}
+const sum = arr => arr.reduce((s,t)=>s+(Number(t.montant)||0),0);
+const sumKm = arr => arr.reduce((s,t)=>s+(Number(t.km)||0),0);
+function byService(list){
+  const o={}; SERVICES.forEach(s=>o[s.id]={n:0,total:0,km:0});
+  list.forEach(t=>{ const k=o[t.service]||(o[t.service]={n:0,total:0,km:0});
+    k.n++; k.total+=Number(t.montant)||0; k.km+=Number(t.km)||0; });
+  return o;
+}
+function byTransport(list){
+  const o={};
+  list.forEach(t=>{ const k=o[t.transport]||(o[t.transport]={n:0,total:0}); k.n++; k.total+=Number(t.montant)||0; });
+  return o;
+}
+function byAgent(list){
+  const o={};
+  list.forEach(t=>{ const k=o[t.agent]||(o[t.agent]={n:0,total:0,service:t.service,last:t.date});
+    k.n++; k.total+=Number(t.montant)||0; if(t.date>k.last) k.last=t.date; });
+  return o;
+}
+function deltaPct(cur,prev){ if(!prev) return null; return (cur-prev)/prev*100; }
+function statusTag(st){
+  return st==="REGLE"
+   ? '<span class="tag" style="background:var(--ok-bg);color:#2A8663">'+ic("check")+' Réglé</span>'
+   : '<span class="tag" style="background:var(--warn-bg);color:#8A6F14">'+ic("clock")+' À régler</span>';
+}
+function serviceTag(id){
+  const s=svc(id);
+  return '<span class="tag" style="background:'+hexA(s.color2,.12)+';color:'+s.color+'"><span class="dotc" style="background:'+s.color2+'"></span>'+esc(s.short)+'</span>';
+}
+function serviceLogo(s, cls){
+  if(s.logo) return '<img src="'+LOGOS[s.logo].uri+'" alt="'+esc(s.name)+'" class="'+(cls||'')+'">';
+  return '<span style="display:grid;place-items:center;color:'+s.color2+'">'+ic(s.icon)+'</span>';
+}
+
+/* ------------------------------ 9. NAVIGATION ------------------------------ */
+const VIEW_META = {
+  dashboard:["Tableau de bord","Vue d'ensemble de la mobilité et des dépenses"],
+  new:["Nouveau déplacement","Enregistrer une sortie et son motif en quelques secondes"],
+  registre:["Registre des sorties","Consulter, filtrer, modifier et exporter les déplacements"],
+  analyse:["Analyse","Tendances, structure des coûts et comportements de mobilité"],
+  collaborateurs:["Collaborateurs","Personnes mobiles, services et consommation"],
+  rapports:["Rapports","Synthèses mensuelles et export PDF officiel"],
+  params:["Paramètres","Identité, collaborateurs, transports et sauvegardes"]
+};
+function go(view){
+  $$(".nav-item").forEach(n=>n.classList.toggle("active", n.dataset.view===view));
+  $$(".view").forEach(v=>v.classList.toggle("active", v.id==="view-"+view));
+  const m=VIEW_META[view]||["",""];
+  $("#pageTitle").textContent=m[0]; $("#pageSub").textContent=m[1];
+  $("#sidebar").classList.remove("open"); $("#scrim").classList.remove("on");
+  window.scrollTo({top:0,behavior:"smooth"});
+  if(view==="dashboard") renderDashboard();
+  if(view==="registre")  renderRegistre();
+  if(view==="analyse")   renderAnalyse();
+  if(view==="collaborateurs") renderCollabs();
+  if(view==="rapports")  renderReportPreview();
+  if(view==="params")    renderParams();
+  if(view==="new")       renderNewViewRefs();
+}
+
+/* ------------------------------ 10. HEADER / POPOVERS ------------------------------ */
+function closePops(){ $$(".pop").forEach(p=>p.classList.remove("open")); }
+/* Déconnexion : gestionnaire délégué — fonctionne pour TOUT élément portant
+   l'attribut data-action="logout" ou les boutons dédiés, même ajoutés plus tard. */
+function bindLogoutDelegation(){
+  if(window.__vtLogoutBound) return;
+  window.__vtLogoutBound = true;
+  document.addEventListener("click", function(e){
+    const el = e.target && e.target.closest ? e.target.closest("[data-action=\"logout\"], #btnLogoutTop, #btnLogoutSide") : null;
+    if(!el) return;
+    e.preventDefault(); e.stopPropagation();
+    logout();
+  }, true);
+}
+function bindPops(){
+  const bell=$("#bellPop"), usr=$("#userPop");
+  $("#btnBell").onclick=e=>{ e.stopPropagation(); const open=bell.classList.contains("open"); closePops(); if(!open) bell.classList.add("open"); };
+  $("#btnUser").onclick=e=>{ e.stopPropagation(); const open=usr.classList.contains("open"); closePops(); if(!open) usr.classList.add("open"); };
+  document.addEventListener("click",()=>closePops());
+  $$("#userMenu [data-action]").forEach(el=>el.onclick=()=>{
+    const a=el.dataset.action; closePops();
+    if(a==="params") go("params");
+    if(a==="rapports") go("rapports");
+    if(a==="new") go("new");
+    if(a==="backup") $("#btnBackup").click();
+    if(a==="wipe") $("#btnWipe").click();
+    if(a==="logout") logout();                     /* retour à l'écran d'accès RH */
+    if(a==="logoutAll"){ logout(); }
+  });
+  document.addEventListener("keydown",e=>{
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="k"){ e.preventDefault(); const s=$("#searchInput"); if(s) s.focus(); }
+    if(e.key==="Escape"){ closePops(); closeModal(); }
+  });
+  const s=$("#searchInput");
+  if(s) s.addEventListener("keydown",e=>{
+    if(e.key==="Enter"){
+      $("#fSearch").value=s.value;
+      page=1; go("registre"); renderRegistre();
+      toast("Recherche appliquée","Filtre « "+trunc(s.value,28)+" » dans le registre.","info");
+    }
+  });
+}
+function renderRoleBadges(){
+  const a=currentAccount();
+  const badge=$("#roleBadge"), txt=$("#roleBadgeTxt");
+  if(badge && txt){
+    const admin = !!(a && a.admin);
+    badge.classList.toggle("admin", admin);
+    txt.textContent = a? (admin? "Administrateur" : "Responsable RH") : (isGuest()? "Consultation" : "Hors session");
+  }
+  const side=$("#sideUserName"), sideRole=$("#sideUserRole"), sideAv=$("#sideAvatar");
+  if(side) side.textContent = DB.user.name||"Espace RH";
+  if(sideRole) sideRole.textContent = DB.user.role||"";
+  if(sideAv) sideAv.textContent = initials(DB.user.name||"RH");
+  /* actions sensibles : réservées au compte Administrateur (mise à jour à chaque connexion) */
+  const admin=!!(a && a.admin);
+  const lock=(sel,on)=>{
+    const b=$(sel); if(!b) return;
+    b.disabled=!on;
+    b.title = on? "" : "Action réservée au compte Administrateur";
+    b.style.opacity = on? "" : ".5";
+    b.style.cursor = on? "" : "not-allowed";
+  };
+  lock("#btnWipe", admin);
+  lock("#fileRestore", admin);
+}
+function renderUser(){
+  $("#avatarInitials").textContent = initials(DB.user.name);
+  $("#userName").textContent = DB.user.name;
+  $("#userRole").textContent = DB.user.role;
+  renderRoleBadges();
+}
+function renderNotifications(){
+  const m=$("#dashMonth").value||currentMonth();
+  const list=tripsOf(m);
+  const open=list.filter(t=>t.statut==="A_REGLE");
+  const noJustif=list.filter(t=>t.justif==="NON");
+  const items=[];
+  if(open.length) items.push({ico:"wallet",t:open.length+" déplacement(s) à régler",s:fmtN(sum(open))+" "+DB.params.devise+" en attente de remboursement",go:"rapports"});
+  if(noJustif.length) items.push({ico:"alert",t:noJustif.length+" justificatif(s) manquant(s)",s:"Complétez les reçus pour la comptabilité",go:"registre"});
+  if(!items.length) items.push({ico:"check",t:"Tout est à jour",s:"Aucune action requise pour ce mois",go:"dashboard"});
+  const n = open.length+noJustif.length;
+  const bc=$("#bellCount");
+  bc.textContent=n; bc.classList.toggle("hidden", n===0);
+  $("#bellHint").textContent = monthLabel(m);
+  $("#bellList").innerHTML = items.map(it=>
+    '<div class="pop-item" data-go="'+it.go+'"><span class="ic">'+ic(it.ico)+'</span>'+
+    '<span class="tx"><b>'+esc(it.t)+'</b>'+esc(it.s)+'</span></div>').join("");
+  $$("#bellList .pop-item").forEach(el=>el.onclick=()=>{ closePops(); go(el.dataset.go); });
+}
+
+/* ------------------------------ 11. TABLEAU (registre) ------------------------------ */
+function vehicleLabel(id){
+  const v=DB.vehicles.find(x=>x.id===id); if(!v) return null;
+  return v;
+}
+/* Visualisation de trajet (suivi transport) : départ ● — pointillé — ◉ arrivée */
+function routeViz(from,to,opts){
+  opts=opts||{};
+  const a=esc(from||"—"), b=esc(to||"—");
+  return '<span class="route-viz'+(opts.mini?" mini":"")+'">'+
+    '<span class="rv-a"></span>'+
+    '<span class="rv-pt" title="'+a+'">'+a+'</span>'+
+    '<svg class="rv-line" viewBox="0 0 60 10" preserveAspectRatio="none" aria-hidden="true">'+
+      '<path d="M1 5 H59"/><circle cx="30" cy="5" r="2.1"/></svg>'+
+    '<span class="rv-pt" title="'+b+'">'+b+'</span>'+
+    '<span class="rv-b"></span></span>';
+}
+function tableHTML(list,opts){
+  opts=opts||{};
+  const rows = list.map(t=>{
+    return '<tr data-id="'+t.id+'">'+
+      '<td style="white-space:nowrap;font-weight:600">'+dateFR(t.date)+'</td>'+
+      '<td>'+serviceTag(t.service)+'</td>'+
+      '<td style="white-space:nowrap">'+esc(t.agent||"—")+'</td>'+
+      '<td class="cell-motif" title="'+esc(t.motif)+'">'+esc(trunc(t.motif,60))+'</td>'+
+      (opts.compact? "" : '<td class="cell-route">'+routeViz(t.from,t.to,{mini:true})+
+        (Number(t.km)? ' <span class="small">· '+fmtN(t.km)+' km</span>':'')+'</td>')+
+      '<td style="white-space:nowrap">'+esc(t.transport)+'</td>'+
+      '<td class="amount strong">'+fmtN(t.montant)+'</td>'+
+      (opts.compact? "" : '<td>'+statusTag(t.statut)+'</td><td class="act no-print">'+
+        '<button class="btn btn-ghost btn-sm" data-edit="'+t.id+'" title="Modifier">'+ic("edit")+'</button> '+
+        '<button class="btn btn-danger btn-sm" data-del="'+t.id+'" title="Supprimer">'+ic("trash")+'</button></td>')+
+    '</tr>';
+  }).join("");
+  const tt=sum(list);
+  return '<table class="tbl"><thead><tr>'+
+    '<th>Date</th><th>Service</th><th>Personne</th><th>Motif</th>'+
+    (opts.compact? "":'<th>Trajet</th>')+
+    '<th>Transport</th><th style="text-align:right">Montant ('+esc(DB.params.devise)+')</th>'+
+    (opts.compact? "":'<th class="no-sort">Statut</th><th class="act no-sort no-print">Actions</th>')+
+    '</tr></thead><tbody>'+rows+'</tbody>'+
+    '<tfoot><tr class="tfoot"><td colspan="'+(opts.compact?4:5)+'">TOTAL — '+list.length+' déplacement'+(list.length>1?'s':'')+'</td>'+
+    '<td style="text-align:right" class="amount">'+fmtN(tt)+' '+esc(DB.params.devise)+'</td>'+
+    (opts.compact? "":'<td colspan="2"></td>')+'</tr></tfoot></table>';
+}
+function bindTableActions(root){
+  $$("[data-edit]",root).forEach(b=>b.onclick=()=>editTrip(b.dataset.edit));
+  $$("[data-del]",root).forEach(b=>b.onclick=()=>{
+    const t=DB.trips.find(x=>x.id===b.dataset.del); if(!t) return;
+    confirmDlg("Supprimer ce déplacement ?",
+      '<div class="alert danger">'+ic("trash")+'<div>Cette action est définitive.</div></div>'+
+      '<div class="divider"></div><div style="font-size:13.5px;line-height:1.9">'+
+      '<div><b>'+esc(t.motif)+'</b></div>'+
+      '<div class="small">'+dateFR(t.date)+' · '+esc(svc(t.service).name)+' · <b>'+fmtN(t.montant)+' '+esc(DB.params.devise)+'</b></div></div>',
+      ()=>{ DB.removeTrip(t.id); refreshAll(); toast("Déplacement supprimé","La ligne a été retirée du registre.","ok"); },"Supprimer");
+  });
+}
+function emptyState(icon,title,hint){
+  return '<div class="empty"><div class="big">'+ic(icon)+'</div><b>'+esc(title)+'</b><div class="hint">'+hint+'</div></div>';
+}
+
+/* ------------------------------ 12. FORMULAIRE ------------------------------ */
+let selService = null;
+function renderServicePick(){
+  $("#svcPick").innerHTML = SERVICES.map(s=>
+    '<div class="pick'+(selService===s.id?" sel":"")+'" data-svc="'+s.id+'">'+
+      '<div class="lg">'+serviceLogo(s)+'</div>'+
+      '<div class="tx"><b>'+esc(s.name)+'</b><small>'+esc(s.role)+'</small></div>'+
+    '</div>').join("");
+  $$("#svcPick .pick").forEach(p=>p.onclick=()=>{ selService=p.dataset.svc; renderServicePick(); $("#err-service").classList.remove("on"); });
+}
+function renderNewViewRefs(){
+  $("#refServices").innerHTML = SERVICES.map(s=>
+    '<div style="display:flex;gap:12px;align-items:center">'+
+      '<div class="logo-box">'+serviceLogo(s)+'</div>'+
+      '<div><div style="font-weight:650;font-size:13.2px;color:'+s.color+'">'+esc(s.name)+'</div><div class="small">'+esc(s.role)+'</div></div>'+
+    '</div>').join("");
+  $("#refTransports").innerHTML = DB.transports.map(t=>'<span class="chip">'+ic("route")+esc(t)+'</span>').join("");
+  $("#motifChips").innerHTML = MOTIFS.map(m=>'<button type="button" data-motif="'+esc(m)+'">'+esc(m)+'</button>').join("");
+  $$("#motifChips [data-motif]").forEach(b=>b.onclick=()=>{
+    $("#fMotif").value=b.dataset.motif; $("#fMotif").classList.remove("err"); $("#err-motif").classList.remove("on");
+  });
+  $("#agentList").innerHTML = DB.agents.map(a=>'<option value="'+esc(a.nom)+'">'+esc(svc(a.service).short)+'</option>').join("");
+  const sel=$("#fTrans"); const cur=sel.value;
+  sel.innerHTML = '<option value="">— Choisir —</option>'+DB.transports.map(t=>'<option>'+esc(t)+'</option>').join("");
+  if(cur) sel.value=cur;
+}
+function validateForm(){
+  let ok=true;
+  const need=(cond,errId)=>{ const e=$("#"+errId); if(e) e.classList.toggle("on",!cond); if(!cond) ok=false; return cond; };
+  need(!!selService,"err-service");
+  ["fDate","fAgent","fMotif","fMontant"].forEach(id=>$("#"+id).classList.remove("err"));
+  if(!need(!!$("#fDate").value,"err-date")) $("#fDate").classList.add("err");
+  if(!need(!!$("#fAgent").value.trim(),"err-agent")) $("#fAgent").classList.add("err");
+  if(!need(!!$("#fMotif").value.trim(),"err-motif")) $("#fMotif").classList.add("err");
+  if(!need(!!$("#fTrans").value,"err-trans")) $("#fTrans").classList.add("err");
+  if(!need(Number($("#fMontant").value)>0,"err-montant")) $("#fMontant").classList.add("err");
+  return ok;
+}
+function submitForm(e){
+  e.preventDefault();
+  if(!validateForm()){ toast("Formulaire incomplet","Merci de corriger les champs signalés.","err"); return; }
+  const t={
+    date:$("#fDate").value, service:selService, agent:$("#fAgent").value.trim(),
+    motif:$("#fMotif").value.trim(), from:$("#fFrom").value.trim(), to:$("#fTo").value.trim(),
+    transport:$("#fTrans").value, vehicule:"", km:Number($("#fKm").value)||0,
+    montant:Number($("#fMontant").value),
+    statut:$("#fStatut").value, justif:$("#fJustif").value, note:$("#fNote").value.trim()
+  };
+  DB.addTrip(t);
+  if(!DB.agents.some(a=>a.nom.toLowerCase()===t.agent.toLowerCase())) { DB.agents.push({nom:t.agent,service:t.service,actif:true}); DB.save(); }
+  toast("Déplacement enregistré", t.agent+" · "+fmtN(t.montant)+" "+DB.params.devise+" · "+t.transport, "ok");
+  const keepDate=$("#fDate").value;
+  resetForm(); $("#fDate").value=keepDate;
+  refreshAll();
+}
+function resetForm(){
+  ["fAgent","fMotif","fFrom","fTo","fMontant","fKm","fNote"].forEach(id=>{ const el=$("#"+id); el.value=""; el.classList.remove("err"); });
+  $$(".err-msg").forEach(e=>e.classList.remove("on"));
+  selService=null; renderServicePick();
+}
+/* ------------------------------ 13. REGISTRE ------------------------------ */
+let sortKey="date", sortDir=-1, page=1;
+function filteredTrips(){
+  const q=$("#fSearch").value.trim().toLowerCase(), m=$("#fMonth").value,
+        s=$("#fService").value, tr=$("#fTransport").value,
+        st=$("#fStatut2").value, ju=$("#fJustif2").value;
+  let list=DB.trips.filter(t=>{
+    if(m && monthOf(t.date)!==m) return false;
+    if(s && t.service!==s) return false;
+    if(tr && t.transport!==tr) return false;
+    if(st && t.statut!==st) return false;
+    if(ju && t.justif!==ju) return false;
+    if(q){
+      const hay=[t.agent,t.motif,t.from,t.to,t.transport,t.note,t.date,svc(t.service).name].join(" ").toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  });
+  list.sort((a,b)=>{
+    let A=a[sortKey],B=b[sortKey];
+    if(sortKey==="montant"||sortKey==="km"){ A=Number(A)||0; B=Number(B)||0; return (A-B)*sortDir; }
+    A=String(A||""); B=String(B||"");
+    return A.localeCompare(B,"fr")*sortDir;
+  });
+  return list;
+}
+function renderRegistre(){
+  const list=filteredTrips();
+  const per=Number($("#fPerPage").value)||20;
+  const pages=Math.max(1,Math.ceil(list.length/per));
+  if(page>pages) page=pages;
+  const slice=list.slice((page-1)*per,page*per);
+  $("#chipFiltered").innerHTML=ic("filter")+" "+list.length+" ligne(s) · <b>"+fmtN(sum(list))+" "+esc(DB.params.devise)+"</b>";
+  const wrap=$("#regWrap");
+  wrap.innerHTML = slice.length? tableHTML(slice) :
+    emptyState("list","Aucune ligne ne correspond","Modifiez les filtres ou enregistrez un nouveau déplacement.");
+  bindTableActions(wrap);
+  $$("th",wrap).forEach((th,i)=>{
+    th.classList.add("no-sort");
+    const labels=["date","service","agent","motif","from","transport","montant","statut",""];
+    const k=labels[i]; if(!k || th.classList.contains("no-sort") && th.classList.contains("act")) return;
+    if(!k) return;
+    th.classList.remove("no-sort");
+    if(th.classList.contains("act")) return;
+    th.innerHTML += '<span class="arw">'+(sortKey===k? (sortDir===1?"▲":"▼") : "↕")+'</span>';
+    th.onclick=()=>{ if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir=1; } renderRegistre(); };
+  });
+  let p='<span class="small">Page '+page+' / '+pages+'</span>';
+  p+='<button class="pg" data-p="1">«</button>';
+  for(let i=Math.max(1,page-2);i<=Math.min(pages,page+2);i++) p+='<button class="pg '+(i===page?"on":"")+'" data-p="'+i+'">'+i+'</button>';
+  p+='<button class="pg" data-p="'+pages+'">»</button>';
+  $("#pager").innerHTML=p;
+  $$("#pager .pg").forEach(b=>b.onclick=()=>{ page=Number(b.dataset.p); renderRegistre(); window.scrollTo({top:180,behavior:"smooth"}); });
+}
+function editTrip(id){
+  const t=DB.trips.find(x=>x.id===id); if(!t) return;
+  const bg=$("#modalBg"), box=$("#modalBox");
+  box.innerHTML='<header><div><h3>Modifier le déplacement</h3><div class="sub">'+dateLongFR(t.date)+'</div></div><button class="x" data-close>'+ic("x")+'</button></header>'+
+  '<div class="bd">'+
+    '<div class="field"><label>Service</label><select class="input" id="mService">'+SERVICES.map(s=>'<option value="'+s.id+'"'+(s.id===t.service?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select></div>'+
+    '<div class="grid g-2" style="gap:0 15px">'+
+      '<div class="field"><label>Date</label><input type="date" class="input" id="mDate" value="'+t.date+'"></div>'+
+      '<div class="field"><label>Personne</label><input class="input" id="mAgent" value="'+esc(t.agent)+'"></div>'+
+    '</div>'+
+    '<div class="field"><label>Motif</label><input class="input" id="mMotif" maxlength="90" value="'+esc(t.motif)+'"></div>'+
+    '<div class="grid g-2" style="gap:0 15px">'+
+      '<div class="field"><label>Départ</label><input class="input" id="mFrom" value="'+esc(t.from||"")+'"></div>'+
+      '<div class="field"><label>Destination</label><input class="input" id="mTo" value="'+esc(t.to||"")+'"></div>'+
+    '</div>'+
+    '<div class="grid g-2" style="gap:0 15px">'+
+      '<div class="field"><label>Transport</label><select class="input" id="mTrans">'+DB.transports.map(x=>'<option'+(x===t.transport?" selected":"")+'>'+esc(x)+'</option>').join("")+'</select></div>'+
+      '<div class="field"><label>Distance (km)</label><input type="number" class="input" id="mKm" value="'+(Number(t.km)||0)+'"></div>'+
+    '</div>'+
+    '<div class="grid g-3" style="gap:0 15px">'+
+      '<div class="field"><label>Montant</label><div class="money-wrap"><input type="number" class="input" id="mMontant" value="'+t.montant+'"><span class="unit">'+esc(DB.params.devise)+'</span></div></div>'+
+      '<div class="field"><label>Statut</label><select class="input" id="mStatut"><option value="A_REGLE"'+(t.statut==="A_REGLE"?" selected":"")+'>À régler</option><option value="REGLE"'+(t.statut==="REGLE"?" selected":"")+'>Réglé</option></select></div>'+
+      '<div class="field"><label>Justificatif</label><select class="input" id="mJustif"><option value="OUI"'+(t.justif!=="NON"?" selected":"")+'>Fourni</option><option value="NON"'+(t.justif==="NON"?" selected":"")+'>Aucun</option></select></div>'+
+    '</div>'+
+    '<div class="field"><label>Observation</label><textarea class="input" id="mNote">'+esc(t.note||"")+'</textarea></div>'+
+  '</div>'+
+  '<footer><button class="btn btn-danger" id="mDel">'+ic("trash")+' Supprimer</button><div style="flex:1"></div>'+
+  '<button class="btn btn-ghost" data-close>Annuler</button><button class="btn btn-primary" id="mSave">'+ic("check")+' Enregistrer</button></footer>';
+  bg.classList.add("on");
+  $$("[data-close]",box).forEach(b=>b.onclick=()=>bg.classList.remove("on"));
+  $("#mSave",box).onclick=()=>{
+    DB.updateTrip(id,{ service:$("#mService").value, date:$("#mDate").value, agent:$("#mAgent").value.trim(),
+      motif:$("#mMotif").value.trim(), from:$("#mFrom").value.trim(), to:$("#mTo").value.trim(),
+      transport:$("#mTrans").value, vehicule:(t.vehicule||""), km:Number($("#mKm").value)||0,
+      montant:Number($("#mMontant").value)||0,
+      statut:$("#mStatut").value, justif:$("#mJustif").value, note:$("#mNote").value.trim() });
+    bg.classList.remove("on"); refreshAll(); toast("Modifié","Les informations ont été mises à jour.","ok");
+  };
+  $("#mDel",box).onclick=()=>{ bg.classList.remove("on"); DB.removeTrip(id); refreshAll(); toast("Supprimé","Ligne retirée du registre.","ok"); };
+}
+
+/* ------------------------------ 14. CSV / SAUVEGARDE ------------------------------ */
+function csvOf(list){
+  const head=["Date","Service","Personne","Motif","Départ","Destination","Transport","Distance (km)","Montant","Statut","Justificatif","Observation"];
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const lines=[head.map(q).join(";")];
+  list.forEach(t=>{
+    lines.push([dateFR(t.date),svc(t.service).name,t.agent,t.motif,t.from,t.to,t.transport,
+      Number(t.km)||0, t.montant,
+      t.statut==="REGLE"?"Réglé":"À régler", t.justif==="NON"?"Aucun":"Fourni", t.note].map(q).join(";"));
+  });
+  lines.push(["","","","","","","","TOTAL",sum(list),"","",""].map(q).join(";"));
+  return "\ufeff"+lines.join("\r\n");
+}
+function exportCsv(list,name){
+  saveAndTell(new Blob([csvOf(list)],{type:"text/csv;charset=utf-8"}), name, function(){ exportCsv(list,name); });
+}
+function doBackup(){
+  const blob=new Blob([JSON.stringify({
+    trips:DB.trips,agents:DB.agents,transports:DB.transports,vehicles:DB.vehicles,
+    params:DB.params,meta:DB.meta,user:DB.user,accounts:DB.accounts},null,1)],{type:"application/json"});
+  saveAndTell(blob,"VOOMNET_Track_sauvegarde_"+todayISO()+".json",function(){ doBackup(); });
+}
+
+/* ------------------------------ 15. PARAMÈTRES ------------------------------ */
+function renderParams(){
+  const p=DB.params;
+  $("#pNom").value=p.nom; $("#pSlogan").value=p.slogan; $("#pVille").value=p.ville;
+  $("#pTel").value=p.tel; $("#pDevise").value=p.devise;
+  $("#pAgentSvc").innerHTML=SERVICES.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  $("#agentListBox").innerHTML='<div class="table-wrap"><table class="tbl" style="min-width:420px"><thead><tr><th class="no-sort">Collaborateur</th><th class="no-sort">Service</th><th class="no-sort" style="text-align:right">Sorties</th><th class="no-sort"></th></tr></thead><tbody>'+
+    DB.agents.map((a,i)=>'<tr><td>'+esc(a.nom)+'</td><td>'+serviceTag(a.service)+'</td><td style="text-align:right">'+DB.trips.filter(t=>t.agent===a.nom).length+'</td>'+
+      '<td style="text-align:right"><button class="btn btn-danger btn-sm" data-ra="'+i+'">'+ic("trash")+'</button></td></tr>').join("")+'</tbody></table></div>';
+  $$("[data-ra]").forEach(b=>b.onclick=()=>{ DB.agents.splice(Number(b.dataset.ra),1); DB.save(); renderParams(); refreshAll(); });
+  $("#transListBox").innerHTML=DB.transports.map((t,i)=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:7px;background:var(--surface-2)">'+
+    '<span style="font-size:13px">'+esc(t)+'</span><button class="btn btn-danger btn-sm" data-rt="'+i+'">'+ic("x")+'</button></div>').join("");
+  $$("[data-rt]").forEach(b=>b.onclick=()=>{ DB.transports.splice(Number(b.dataset.rt),1); DB.save(); renderParams(); renderNewViewRefs(); refreshAll(); });
+  const s=DB.trips;
+  $("#statsBox").innerHTML="<b>"+s.length+"</b> déplacement(s) · <b>"+fmtN(sum(s))+"</b> "+esc(DB.params.devise)+
+    " cumulés · <b>"+fmtN(sumKm(s))+"</b> km · "+DB.agents.length+" collaborateur(s) · "+SERVICES.length+" service(s)"+
+    (s.length? " · du "+dateFR(s.map(t=>t.date).sort()[0])+" au "+dateFR(s.map(t=>t.date).sort().slice(-1)[0]) : "");
+  $("#storeInfo").innerHTML = Store.mode==="local"
+    ? "<b>Stockage local actif</b> — vos données sont conservées automatiquement dans ce navigateur, même après fermeture."
+    : "<b>Stockage local indisponible</b> (aperçu restreint) — les données restent en mémoire pour cette session. Ouvrez <b>index.html</b> dans un navigateur pour un enregistrement permanent, ou utilisez la sauvegarde JSON.";
+}
+
+/* ---------------------- 16. AUCUNE DONNÉE DE DÉMONSTRATION ----------------------
+   La plateforme ne génère plus aucun déplacement fictif : toutes les données
+   proviennent exclusivement de la saisie RH (ou d'une sauvegarde JSON restaurée).
+   -------------------------------------------------------------------------------- */
+
+/* ------------------------------ 17. RAFRAÎCHISSEMENT ------------------------------ */
+function refreshAll(){
+  const m=$("#dashMonth").value||currentMonth();
+  $("#dashMonth").value=m;
+  if($("#fMonth")) $("#fMonth").value=$("#fMonth").value||m;
+  if($("#rMonth")) $("#rMonth").value=$("#rMonth").value||m;
+  /* badges sidebar */
+  $("#badgeRegistre").textContent = tripsOf(m).length;
+  $("#badgeCollabs").textContent = DB.agents.length;
+  /* chip mois + stockage */
+  $("#chipMonth").innerHTML = ic("calendar")+" "+monthLabel(m);
+  const pill=$("#storePill");
+  pill.classList.toggle("warn", Store.mode!=="local");
+  $("#storePillTxt").textContent = Store.mode==="local"
+    ? "Stockage local actif · "+DB.trips.length+" lignes"
+    : "Session seule · pensez au JSON";
+  renderUser();
+  renderNotifications();
+  renderDashboard();
+  if($("#view-registre").classList.contains("active")) renderRegistre();
+  if($("#view-analyse").classList.contains("active")) renderAnalyse();
+  if($("#view-collaborateurs").classList.contains("active")) renderCollabs();
+  if($("#view-rapports").classList.contains("active")) renderReportPreview();
+}
+
+/* --------------------------- 18. SESSION & CONNEXION --------------------------- */
+function sessionAccountId(){ try{ return sessionStorage.getItem("vt_session")||""; }catch(e){ return ""; } }
+function currentAccount(){
+  const id=sessionAccountId();
+  if(!id || id==="guest") return null;   /* aucune session anonyme : identifiant obligatoire */
+  return DB.accounts.find(a=>a.id===id) || null;
+}
+function hasSession(){ return !!currentAccount(); }
+function isAdmin(){ const a=currentAccount(); return !!(a && a.admin); }
+function isGuest(){ return sessionAccountId()==="guest"; }
+
+function isTouch(){ return window.matchMedia && window.matchMedia("(hover:none)").matches; }
+function loginError(msg){
+  const e=$("#err-login");
+  if(e){ const sp=e.lastElementChild; if(sp) sp.textContent=msg; e.classList.add("on"); }
+  const i=$("#loginIdent"), pwd=$("#loginPwd");
+  if(i) i.classList.add("err"); if(pwd) pwd.classList.add("err");
+  const card=$(".login-card"); if(card){ card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake"); }
+}
+function showLogin(){
+  const L=$("#login"); if(!L) return;
+  const pw=$("#loginPwd"); if(pw){ pw.value=""; pw.type="password"; pw.classList.remove("err"); }
+  const idf=$("#loginIdent"); if(idf){ idf.value=""; idf.classList.remove("err"); }
+  const e=$("#err-login"); if(e) e.classList.remove("on");
+  L.classList.remove("hidden","closing");
+  setTimeout(()=>{ if(idf && !isTouch()) idf.focus(); }, 430);
+}
+function connectAccount(acc){
+  DB.user={ name:acc.label, role:acc.role, account:acc.id, admin:!!acc.admin };
+  DB.save();
+  try{ sessionStorage.setItem("vt_session", acc.id); }catch(e){}
+  const L=$("#login");
+  if(L){ L.classList.add("closing"); setTimeout(()=>L.classList.add("hidden"), 460); }
+  renderUser(); refreshAll(); go("dashboard");
+  toast("Bienvenue, "+acc.role, acc.label+" · espace de pilotage central de la mobilité.","ok");
+}
+function doLogin(ident, pwd){
+  const id=(ident||"").trim().toLowerCase(), p=(pwd||"");
+  const ok = DB.accounts.find(a=> a.login.toLowerCase()===id && a.hash===hashPwd(p));
+  if(!ok){
+    loginError(!id? "Renseignez votre identifiant." : (!p? "Renseignez votre mot de passe." : "Identifiant ou mot de passe incorrect."));
+    return false;
+  }
+  connectAccount(ok);
+  return true;
+}
+function doGuest(){
+  /* Accès anonyme désactivé : la plateforme exige un identifiant nominatif. */
+  try{ sessionStorage.removeItem("vt_session"); }catch(e){}
+  showLogin();
+  toast("Accès refusé","Un identifiant est obligatoire pour entrer dans la plateforme.","err");
+}
+function logout(){
+  try{ sessionStorage.removeItem("vt_session"); }catch(e){}
+  if(typeof closePops==="function") closePops();
+  if(typeof go==="function") go("dashboard");
+  showLogin();
+  toast("Déconnexion réussie","Vous êtes revenu à l'écran d'accès.","ok");
+}
+
+/* ------------------------------ 18. SPLASH ------------------------------ */
+function initSplash(onDone){
+  const sp=$("#splash");
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(!sp){ if(onDone) onDone(); return; }
+  hydrateIcons(sp);
+  hydrateBrand(sp);
+
+  /* ---- Le splash est joué à CHAQUE lancement de l'application ----
+     Pour l'ignorer ponctuellement (test, intégration), ouvrir avec ?splash=0
+     ou ?splash=off. Aucun drapeau n'est conservé : un simple rechargement
+     rejoue donc l'animation. */
+  let skip=false;
+  try{
+    const p=new URLSearchParams(location.search);
+    skip = ["0","off","none","false"].indexOf((p.get("splash")||"").toLowerCase())>=0;
+  }catch(e){ skip=false; }
+  /* filet de sécurité : si l'onglet est masqué (arrière-plan), on n'attend pas */
+  if(skip || document.hidden){
+    sp.remove();
+    if(onDone) onDone();
+    return;
+  }
+
+  let closed=false;
+  /* séquence : halo 0→1,15 s · logo 0,10→1,05 s · signature 0,46 s ·
+     filet doré 0,58 s · jauge 0,45→1,75 s · sortie douce → application vers 2,3 s */
+  const DUR = reduce? 300 : 1850;
+  const close = ()=>{
+    if(closed) return; closed=true;
+    sp.classList.add("done");
+    setTimeout(()=>{ sp.remove(); if(onDone) onDone(); }, reduce? 0 : 420);
+  };
+  setTimeout(close, DUR);
+  sp.addEventListener("click", close);                                  /* un clic = on entre directement */
+  const keyClose = e=>{ if(e.key) close(); };
+  document.addEventListener("keydown", keyClose, {once:true});
+  /* si l'onglet redevient visible, on respecte la durée normale (aucune coupure) */
+}
+</script>

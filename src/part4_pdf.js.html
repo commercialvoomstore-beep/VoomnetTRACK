@@ -1,0 +1,555 @@
+<script>
+/* ============================================================================
+   MOTEUR PDF MAISON — Aucune bibliothèque externe, aucun appel réseau.
+   Génère un PDF A4 multi-pages en polices Standard 14 (Helvetica).
+   ============================================================================ */
+"use strict";
+(function(){
+
+/* ---- Métriques Helvetica (largeurs /1000, codes 32..126) ---- */
+const W_R=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,
+ 556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,
+ 667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,
+ 278,278,278,469,556,333,
+ 556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,
+ 334,260,334,584];
+const W_B=[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,
+ 556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,
+ 722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,
+ 333,278,333,584,556,333,
+ 556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,
+ 389,280,389,584];
+const ACC={"\u00E0":"a","\u00E2":"a","\u00E4":"a","\u00E1":"a","\u00E3":"a","\u00E5":"a","\u00E7":"c",
+ "\u00E8":"e","\u00E9":"e","\u00EA":"e","\u00EB":"e","\u00EE":"i","\u00EF":"i","\u00ED":"i","\u00EC":"i",
+ "\u00F4":"o","\u00F6":"o","\u00F3":"o","\u00F2":"o","\u00F5":"o","\u00F9":"u","\u00FB":"u","\u00FC":"u","\u00FA":"u",
+ "\u00FF":"y","\u00F1":"n","\u00C0":"A","\u00C2":"A","\u00C7":"C","\u00C9":"E","\u00C8":"E","\u00CA":"E","\u00CB":"E",
+ "\u00CE":"I","\u00D4":"O","\u00D6":"O","\u00D9":"U","\u00DB":"U","\u00DC":"U","\u00B0":"o","\u00B7":"."};
+function translit(s){
+  return String(s==null?"":s)
+    .replace(/[\u2018\u2019\u201B\u2032]/g,"'").replace(/[\u201C\u201D\u2033]/g,'"')
+    .replace(/[\u2013\u2014\u2212]/g,"-").replace(/\u2026/g,"...")
+    .replace(/[\u202F\u00A0\u2009\u2007]/g," ").replace(/\u2022/g,"-")
+    .replace(/\u0153/g,"oe").replace(/\u0152/g,"OE").replace(/\u00E6/g,"ae").replace(/\u00C6/g,"AE")
+    .replace(/\u20AC/g,"EUR").replace(/[^\x20-\xFF]/g,"");
+}
+function chW(ch,bold){
+  const c=ch.charCodeAt(0), T=bold?W_B:W_R;
+  if(c>=32&&c<=126) return T[c-32];
+  if(c===160) return 278;
+  const a=ACC[ch]; if(a) return T[a.charCodeAt(0)-32]||556;
+  return bold?611:556;
+}
+function tw(str,size,bold){ const t=translit(str); let w=0; for(let i=0;i<t.length;i++) w+=chW(t[i],bold); return w*size/1000; }
+function fit(str,size,bold,maxw){
+  let t=translit(str);
+  if(tw(t,size,bold)<=maxw) return t;
+  while(t.length>1 && tw(t+"\u2026",size,bold)>maxw) t=t.slice(0,-1);
+  return t+"\u2026";
+}
+function wrap(str,size,bold,maxw,maxLines){
+  const words=translit(str).split(/\s+/).filter(x=>x!=="");
+  const lines=[]; let cur="";
+  for(let i=0;i<words.length;i++){
+    const test=cur? cur+" "+words[i] : words[i];
+    if(tw(test,size,bold)<=maxw || !cur) cur=test;
+    else { lines.push(cur); cur=words[i]; if(lines.length>=maxLines) break; }
+  }
+  if(cur && lines.length<maxLines) lines.push(cur);
+  const out=[];
+  for(let i=0;i<Math.min(lines.length,maxLines);i++){
+    out.push(i===maxLines-1 && lines.length>maxLines? fit(lines[i],size,bold,maxw) : fit(lines[i],size,bold,maxw));
+  }
+  return out;
+}
+function hex2rgb(h){ const n=parseInt(h.replace("#",""),16); return [((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255]; }
+function n3(v){ return (Math.round(v*1000)/1000).toString(); }
+function fillOp(hex){ const c=hex2rgb(hex); return n3(c[0])+" "+n3(c[1])+" "+n3(c[2])+" rg"; }
+function strokeOp(hex){ const c=hex2rgb(hex); return n3(c[0])+" "+n3(c[1])+" "+n3(c[2])+" RG"; }
+function pdfStr(s){
+  let out="(";
+  for(let i=0;i<s.length;i++){
+    const ch=s[i], code=ch.charCodeAt(0);
+    if(ch==="("||ch===")"||ch==="\\") out+="\\"+ch;
+    else if(code<32) out+=" ";
+    else out+=ch;
+  }
+  return out+")";
+}
+function latin1Bytes(str){
+  const a=new Uint8Array(str.length);
+  for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); a[i]= c>255? 63 : c; }
+  return a;
+}
+
+/* ---- Générateur ---- */
+function makePDF(cfg){
+  const W=595.28, H=841.89, ML=40, CW=W-ML*2;
+  const C={ violet:"#33095A", violet2:"#510871", violet3:"#8B2AB5", or:"#D4AF37", orD:"#A8862A",
+            orL:"#FBF3D8", ink:"#1E1233", ink2:"#4A3A63", muted:"#7A6C92", line:"#E7E1F0",
+            zebe:"#FCFAFE", ok:"#12855B" };
+  const fonts=[]; const xobjs=[]; const pages=[];
+  let ops=[]; let y=0; let pageNo=0;
+
+  function F(id){ if(fonts.indexOf(id)<0) fonts.push(id); return "/"+id; }
+  function XO(key){ if(xobjs.indexOf(key)<0) xobjs.push(key); return "/"+key; }
+  function add(s){ ops.push(s); }
+  function newPage(first){
+    ops=[]; pages.push(ops); pageNo++; y=H;
+    if(!first){
+      /* bandeau discret des pages suivantes */
+      add(fillOp(C.violet)+" 0 "+(H-34)+" "+W+" 34 re f");
+      add(fillOp(C.or)+" 0 "+(H-38)+" "+W+" 3.5 re f");
+      text(cfg.company, ML, H-22, 12, {bold:true,color:C.or});
+      text("État des dépenses de déplacement — "+cfg.periodLabel, W-ML-260, H-22, 8.6, {color:"#E3D6F3",w:260,align:"right"});
+      y=H-44;   /* la suite du contenu démarre sous le bandeau */
+    }
+    return ops;
+  }
+  function text(str,x,yy,size,o){
+    o=o||{};
+    const t=translit(String(str==null?"":str));
+    if(!t) return 0;
+    const bold=!!o.bold, ital=!!o.italic;
+    const w=tw(t,size,bold);
+    let x0=x;
+    if(o.align==="center") x0=x+(o.w||0)/2-w/2;
+    if(o.align==="right")  x0=x+(o.w||0)-w;
+    const col=o.color? fillOp(o.color) : fillOp(C.ink);
+    add("BT "+col+" "+F(bold?"F2":ital?"F3":"F1")+" "+n3(size)+" Tf "+n3(x0)+" "+n3(yy)+" Td "+pdfStr(t)+" Tj ET");
+    return w;
+  }
+  function rect(x,yy,w,h,hex,opts){
+    opts=opts||{};
+    if(opts.r){ roundRect(x,yy,w,h,opts.r,hex,opts); return; }
+    add(fillOp(hex)+" "+n3(x)+" "+n3(yy)+" "+n3(w)+" "+n3(h)+" re f");
+  }
+  function roundRect(x,yy,w,h,r,hex,opts){
+    opts=opts||{}; const k=r*0.5523;
+    let d="";
+    d+=n3(x+r)+" "+n3(yy)+" m";
+    d+=" "+n3(x+w-r)+" "+n3(yy)+" l";
+    d+=" "+n3(x+w-r+k)+" "+n3(yy)+" "+n3(x+w)+" "+n3(yy+r-k)+" "+n3(x+w)+" "+n3(yy+r)+" c";
+    d+=" "+n3(x+w)+" "+n3(yy+h-r)+" l";
+    d+=" "+n3(x+w)+" "+n3(yy+h-r+k)+" "+n3(x+w-r+k)+" "+n3(yy+h)+" "+n3(x+w-r)+" "+n3(yy+h)+" c";
+    d+=" "+n3(x+r)+" "+n3(yy+h)+" l";
+    d+=" "+n3(x+r-k)+" "+n3(yy+h)+" "+n3(x)+" "+n3(yy+h-r+k)+" "+n3(x)+" "+n3(yy+h-r)+" c";
+    d+=" "+n3(x)+" "+n3(yy+r)+" l";
+    d+=" "+n3(x)+" "+n3(yy+r-k)+" "+n3(x+r-k)+" "+n3(yy)+" "+n3(x+r)+" "+n3(yy)+" c";
+    add(fillOp(hex)+" "+d+" f");
+    if(opts.border){ add(strokeOp(opts.border)+" "+n3(opts.lw||0.8)+" w "+d+" S"); }
+  }
+  function hline(x1,x2,yy,hex,lw){ add(strokeOp(hex)+" "+n3(lw||0.7)+" w "+n3(x1)+" "+n3(yy)+" m "+n3(x2)+" "+n3(yy)+" l S"); }
+  function img(key,x,yTop,hmax,wmax,align){
+    const m=cfg.images[key]; if(!m) return 0;
+    let h=hmax, w=h*m.w/m.h;
+    if(w>wmax){ w=wmax; h=w*m.h/m.w; }
+    let x0=x;
+    if(align==="center") x0=x+(wmax-w)/2;
+    if(align==="right")  x0=x+(wmax-w);
+    const y0=yTop+hmax/2-h/2;
+    add("q "+n3(w)+" 0 0 "+n3(h)+" "+n3(x0)+" "+n3(y0)+" cm "+XO(key)+" Do Q");
+    return w;
+  }
+  function need(space){ if(y-space<86){ newPage(false); return true; } return false; }
+  function blockTitle(label){
+    need(42);
+    y-=20;
+    text(label, ML, y, 10.2, {bold:true,color:C.violet2});
+    const lw=tw(label,10.2,true);
+    hline(ML+lw+10, W-ML, y+3.2, "#D9CBE9", 1);
+    y-=10;
+  }
+
+  /* ================= RAPPORT ================= */
+  newPage(true);
+
+  /* --- Bandeau d'en-tête --- */
+  add(fillOp(C.violet)+" 0 "+(H-72)+" "+W+" 72 re f");
+  add(fillOp(C.violet2)+" 0 "+(H-72)+" "+W+" 20 re f");
+  add(fillOp(C.or)+" 0 "+(H-76.5)+" "+W+" 4.5 re f");
+  text(cfg.company, ML, H-34, 21, {bold:true,color:C.or});
+  text(cfg.slogan, ML, H-50, 8.8, {color:"#DCCFF0"});
+  text(cfg.ville+(cfg.tel? "  ·  "+cfg.tel : ""), ML, H-62, 7.6, {color:"#B9A2D8"});
+  text("RAPPORT MENSUEL", W-ML-260, H-34, 12.4, {bold:true,color:"#FFFFFF",w:260,align:"right"});
+  text(cfg.periodLabel, W-ML-260, H-49, 9.6, {color:C.or,w:260,align:"right"});
+  text("Édité le "+cfg.dateFR, W-ML-260, H-61, 7.6, {color:"#B9A2D8",w:260,align:"right"});
+
+  /* --- Bandeau des logos : une colonne reguliere par entite (aucun chevauchement) --- */
+  y=H-72-6;
+  const stripH=44;
+  roundRect(ML, y-stripH, CW, stripH, 8, "#FFFFFF", {border:C.line, lw:0.8});
+  const stripY=y-stripH;
+  const lg=[];
+  cfg.strip.forEach(k=>{ const m=cfg.images[k]; if(!m) return; lg.push({k:k,m:m}); });
+  const slotW=CW/Math.max(1,lg.length);
+  lg.forEach((g,i)=>{
+    const cx=ML+slotW*(i+0.5);
+    const maxW=slotW-14, labW=slotW-8;
+    img(g.k, cx-maxW/2, stripY+14, 20, maxW, "center");   /* image centree dans sa colonne */
+    text(fit(g.m.label,6.3,false,labW), cx-labW/2, stripY+7.6, 6.3, {color:C.muted,align:"center",w:labW});
+    if(i<lg.length-1){
+      const sx=ML+slotW*(i+1);
+      add(strokeOp(C.line)+" 0.8 w "+n3(sx)+" "+n3(stripY+9)+" m "+n3(sx)+" "+n3(stripY+35)+" l S");
+    }
+  });
+
+  /* --- Titre --- */
+  y=stripY-26;
+  text("ÉTAT DES DÉPENSES DE DÉPLACEMENT", ML, y, 14.2, {bold:true,color:C.violet,align:"center",w:CW});
+  y-=15;
+  text("Période : "+cfg.periodLabel+"   ·   Périmètre : "+cfg.scope+"   ·   Devise : "+cfg.devise, ML, y, 9, {color:C.ink2,align:"center",w:CW});
+  y-=13;
+  hline(ML, W-ML, y, C.line, 0.8); y-=8;
+
+  /* --- KPI --- */
+  y-=14;
+  const kbH=50, gap=8, kbW=(CW-3*gap)/4;
+  cfg.kpis.forEach((k,i)=>{
+    const x=ML+i*(kbW+gap);
+    const gold=!!k.gold;
+    roundRect(x, y-kbH, kbW, kbH, 8, gold? C.orL : "#F8F4FB", {border: gold? "#EBD79A" : "#E6DAF3", lw:0.8});
+    add(fillOp(gold? C.or : C.violet2)+" "+n3(x)+" "+n3(y-kbH)+" 3.2 "+n3(kbH)+" re f");
+    text(k.label.toUpperCase(), x+11, y-15, 6.9, {bold:true,color:C.muted});
+    text(k.value, x+11, y-32, 13.4, {bold:true,color: gold? C.orD : C.violet});
+    if(k.note) text(k.note, x+11, y-43, 6.6, {color:C.muted});
+  });
+  y-=kbH+10;
+
+  /* --- Tableau générique --- */
+  function table(cols,rows,opts){
+    opts=opts||{};
+    const total=cols.reduce((a,c)=>a+c.w,0);
+    const scale=CW/total;
+    const widths=cols.map(c=>c.w*scale);
+    let xs=[ML]; widths.forEach((w,i)=>xs.push(xs[i]+w));
+    const hH=16, rowH=opts.rowH||15.5;
+    const header=()=>{
+      add(fillOp(C.violet2)+" "+n3(ML)+" "+n3(y-hH)+" "+n3(CW)+" "+n3(hH)+" re f");
+      cols.forEach((c,i)=>{
+        const al=c.align||"left";
+        const pad=4;
+        if(al==="right") text(c.label, xs[i], y-11, 7.4, {bold:true,color:"#FFFFFF",align:"right",w:widths[i]-pad});
+        else if(al==="center") text(c.label, xs[i], y-11, 7.4, {bold:true,color:"#FFFFFF",align:"center",w:widths[i]});
+        else text(c.label, xs[i]+pad, y-11, 7.4, {bold:true,color:"#FFFFFF"});
+      });
+      y-=hH;
+    };
+    need(hH+rowH*2+8);
+    header();
+    rows.forEach((r,ri)=>{
+      const h=r.h||rowH;
+      if(y-h<86){ newPage(false); y-=6; header(); }
+      const bg = r.total2? "#FBF3D8" : (ri%2? C.zebe : "#FFFFFF");
+      if(bg!=="#FFFFFF") add(fillOp(bg)+" "+n3(ML)+" "+n3(y-h)+" "+n3(CW)+" "+n3(h)+" re f");
+      if(r.accent) add(fillOp(r.accent)+" "+n3(ML)+" "+n3(y-h)+" 2.6 "+n3(h)+" re f");
+      hline(ML, W-ML, y-h, C.line, 0.5);
+      if(r.full) text(r.full, ML+10, y-h/2+2.9, 8, {bold:true,color:"#6E5210"});
+      r.cells.forEach((cell,i)=>{
+        if(!cell || cell.skip) return;
+        const c=cols[i], al=cell.align||c.align||"left", pad=4;
+        const col=cell.color|| (r.total2? "#6E5210" : C.ink);
+        const bold=cell.bold||r.total2;
+        const size=cell.size||7.8;
+        if(cell.logo){
+          const m=cfg.images[cell.logo];
+          if(m){ const hh=Math.min(17,h-6), ww=hh*m.w/m.h; img(cell.logo, xs[i]+pad, y-h/2-hh/2, hh, Math.min(widths[i]-8,ww), "left"); }
+          else { add(fillOp(C.orL)+" "+n3(xs[i]+pad)+" "+n3(y-h/2-7)+" 26 14 re f");
+                 text("DG", xs[i]+pad, y-h/2-3, 8, {bold:true,color:C.orD,align:"center",w:26}); }
+          return;
+        }
+        if(cell.rect){ add(fillOp(cell.rect)+" "+n3(ML)+" "+n3(y-h)+" "+n3(CW)+" "+n3(h)+" re f"); }
+        if(cell.wrap){
+          const lines=wrap(cell.text,size,bold,widths[i]-pad*2,cell.lines||2);
+          lines.forEach((ln,k)=>{
+            const ly=y-h/2+((lines.length-1)/2-k)*8.6+2.9;
+            if(al==="right") text(ln, xs[i], ly, size, {bold:bold,color:col,align:"right",w:widths[i]-pad});
+            else if(al==="center") text(ln, xs[i], ly, size, {bold:bold,color:col,align:"center",w:widths[i]});
+            else text(ln, xs[i]+pad, ly, size, {bold:bold,color:col});
+          });
+        }else{
+          const s=fit(cell.text,size,bold,widths[i]-pad*2);
+          const ly=y-h/2+2.9;
+          if(al==="right") text(s, xs[i], ly, size, {bold:bold,color:col,align:"right",w:widths[i]-pad});
+          else if(al==="center") text(s, xs[i], ly, size, {bold:bold,color:col,align:"center",w:widths[i]});
+          else text(s, xs[i]+pad, ly, size, {bold:bold,color:col});
+        }
+      });
+      y-=h;
+    });
+    if(opts.lastLine!==false) hline(ML, W-ML, y, "#D9CBE9", 0.9);
+    y-=8;
+  }
+
+  /* --- Synthèse par service --- */
+  blockTitle("1 · SYNTHÈSE PAR SERVICE / ENTITÉ");
+  table(
+    [{label:"LOGO",w:56},{label:"SERVICE / ENTITÉ",w:186},{label:"AGENT(S) AYANT DÉPLACÉ",w:132},
+     {label:"DÉPLACEMENTS",w:62,align:"center"},{label:"TOTAL",w:82,align:"right"},{label:"PART",w:46,align:"right"}],
+    cfg.services.map(s=>({h:22,accent:s.accent,cells:[
+      {logo:s.logoKey},
+      {text:s.name,bold:true,color:C.violet},
+      {text:s.agentsTxt,size:6.9,color:C.muted,wrap:true,lines:2},
+      {text:String(s.n),align:"center"},
+      {text:cfg.fmt(s.total),bold:true,color:C.violet,align:"right"},
+      {text:s.part,align:"right"}
+    ]})).concat([{total2:true,full:"TOTAL GÉNÉRAL DU MOIS",cells:[
+      {skip:true},{skip:true},{skip:true,logo:null},
+      {text:String(cfg.nb),align:"center",bold:true,size:8.4},
+      {text:cfg.fmt(cfg.total),align:"right",bold:true,size:8.6},{text:"100,0 %",align:"right",bold:true}]}])
+  );
+
+  /* --- Synthèse par transport --- */
+  blockTitle("2 · SYNTHÈSE PAR MOYEN DE TRANSPORT");
+  table(
+    [{label:"MOYEN DE TRANSPORT",w:300},{label:"NOMBRE DE SORTIES",w:90,align:"center"},
+     {label:"TOTAL DÉPENSÉ",w:110,align:"right"},{label:"PART",w:60,align:"right"}],
+    cfg.transports.map(t=>({cells:[
+      {text:t.label,bold:false,color:t.empty? C.muted : C.ink},
+      {text:String(t.n),align:"center"},
+      {text:cfg.fmt(t.total),align:"right",color:C.violet},
+      {text:t.part,align:"right",size:7.4}
+    ]}))
+  );
+
+  /* --- Détail --- */
+  if(cfg.detail && cfg.trips.length){
+    blockTitle("3 · DÉTAIL DES DÉPLACEMENTS DU MOIS ("+cfg.trips.length+")");
+    const cols=[{label:"DATE",w:46},{label:"SERVICE",w:70},{label:"PERSONNE",w:96},
+      {label:"MOTIF DE LA SORTIE",w:118},{label:"TRAJET",w:88},{label:"TRANSPORT",w:64},
+      {label:"MONTANT",w:50,align:"right"}];
+    const rows=[];
+    cfg.trips.forEach(t=>{
+      rows.push({h:22,cells:[
+        {text:t.dateFR,size:6.6,pad:3},
+        {text:t.serviceShort,bold:true,size:6.9,color:t.color},
+        {text:t.agent,size:6.9},
+        {text:t.motif,size:7.0,wrap:true,lines:2},
+        {text:t.route,size:6.7,wrap:true,lines:2,color:C.ink2},
+        {text:t.transport,size:6.7,wrap:true,lines:2,color:C.ink2},
+        {text:cfg.fmt(t.montant),size:7.2,bold:true,align:"right",color:C.violet}
+      ]});
+    });
+    rows.push({total2:true,full:"TOTAL DU MOIS",cells:[
+      {skip:true},{skip:true},{skip:true},{skip:true},{skip:true},
+      {text:String(cfg.nb)+" sortie(s)",align:"right",size:7.6,bold:true},
+      {text:cfg.fmt(cfg.total),align:"right",bold:true,size:8.6}]});
+    table(cols,rows,{rowH:22});
+  }
+
+  /* --- Observations --- */
+  blockTitle((cfg.detail?"4":"3")+" · OBSERVATIONS DE GESTION");
+  const obs=[
+    "Total des dépenses de déplacement du mois : "+cfg.fmt(cfg.total)+" "+cfg.devise+" pour "+cfg.nb+" déplacement(s) enregistré(s).",
+    "Dépense moyenne par déplacement : "+cfg.fmt(cfg.avg)+" "+cfg.devise+".",
+    "Montant restant à régler à la date d'édition : "+cfg.fmt(cfg.open)+" "+cfg.devise+" ("+cfg.openN+" déplacement(s)).",
+    cfg.total>0 && cfg.topSvc? ("Service le plus consommateur : "+cfg.topSvc+" — soit "+cfg.topSvcTotal+" "+cfg.devise+".") : "",
+    cfg.total>0 && cfg.topTr ? ("Moyen de transport le plus utilisé : "+cfg.topTr+" ("+cfg.topTrN+" sorties).") : "",
+    cfg.total===0? "Aucun déplacement n'a été enregistré pour la période sélectionnée." : ""
+  ].filter(x=>x!=="");
+  y-=4;
+  obs.forEach(o=>{
+    need(16);
+    add(fillOp(C.or)+" "+n3(ML+1)+" "+n3(y-6)+" 3 3 re f");
+    const lines=wrap(o,8.2,false,CW-16,2);
+    lines.forEach((ln,k)=>text(ln, ML+12, y-6-k*10, 8.2, {color:C.ink2}));
+    y-=(lines.length>1? 20:14);
+  });
+  y-=4;
+
+  /* --- Signatures --- */
+  if(cfg.sign){
+    need(96);
+    blockTitle((cfg.detail?"5":"4")+" · VISAS ET APPROBATION");
+    y-=6;
+    const bw=(CW-2*14)/3, bh=76;
+    [["Établi par","Service concerné"],["Vérifié par","Comptabilité"],["Approuvé par","Direction Générale"]].forEach((t,i)=>{
+      const x=ML+i*(bw+14);
+      roundRect(x, y-bh, bw, bh, 7, "#FFFFFF", {border:"#D9CEE8", lw:0.8});
+      roundRect(x, y-bh, bw, 18, 7, "#F8F4FB", {border:"#D9CEE8", lw:0.8});
+      text(t[0], x, y-bh+11, 7.6, {bold:true,color:C.violet2,align:"center",w:bw});
+      text(t[1], x, y-bh+3.4, 6.6, {color:C.muted,align:"center",w:bw});
+      hline(x+16, x+bw-16, y-bh+32, "#C9B6E4", 0.8);
+      text("Nom, date et signature", x, y-bh+24, 6.4, {color:C.muted,align:"center",w:bw});
+    });
+    y-=bh+14;
+  }
+
+  /* --- Pied de page (toutes les pages) --- */
+  const total=pages.length;
+  pages.forEach((p,i)=>{
+    p.push(fillOp(C.or)+" "+n3(ML)+" 62 "+n3(CW)+" 1.8 re f");
+    p.push("BT "+fillOp(C.muted)+" "+F("F1")+" 6.9 Tf "+n3(ML)+" 50 Td "+
+      pdfStr(translit(cfg.company+"  ·  État des dépenses de déplacement  ·  "+cfg.periodLabel+"  ·  Document interne"))+" Tj ET");
+    p.push("BT "+fillOp(C.muted)+" "+F("F1")+" 6.9 Tf "+n3(W-ML-100)+" 50 Td "+
+      pdfStr("Page "+(i+1)+" / "+total+"   ·   Généré le "+cfg.dateFR)+" Tj ET");
+    p.push("BT "+fillOp("#B9A2D8")+" "+F("F1")+" 6.2 Tf "+n3(ML)+" 40 Td "+
+      pdfStr(translit("Plateforme VOOMNET · suivi des dépenses de déplacement · "+cfg.devise))+" Tj ET");
+  });
+
+  /* ================= ASSEMBLAGE DU FICHIER ================= */
+  const contents=pages.map(p=>latin1Bytes(p.join("\n")+"\n"));
+  const objs=[];           /* corps des objets, indexés à partir de 1 */
+  const pageObjNums=[];    /* numéro d'objet de chaque page */
+  let n=1;
+  const catalogN=n++, pagesN=n++;
+  const fontNums={}; fonts.forEach(f=>fontNums[f]=n++);
+  const xobjNums={}; xobjs.forEach(k=>xobjNums[k]=n++);
+  contents.forEach(c=>{ const pn=n++, cn=n++; pageObjNums.push([pn,cn]); });
+  const infoN=n++;
+
+  /* images : corps binaires */
+  const xobjBody={};
+  xobjs.forEach(k=>{ xobjBody[k]=cfg.imageBytes[k]; });
+  let maxN=n-1;
+
+  const fontResNames={F1:"Helvetica",F2:"Helvetica-Bold",F3:"Helvetica-Oblique"};
+  const resFont = fonts.map(f=>"/"+f+" "+fontNums[f]+" 0 R").join(" ");
+  const resXo   = xobjs.map(k=>"/"+k+" "+xobjNums[k]+" 0 R").join(" ");
+  const resources = "<< /Font << "+resFont+" >> "+ (xobjs.length? "/XObject << "+resXo+" >> ":"")+
+                    "/ProcSet [/PDF /Text /ImageC /ImageB] >>";
+
+  function obj(nn, body){ objs[nn]=body; }
+  obj(1, "<< /Type /Catalog /Pages "+pagesN+" 0 R >>");
+  obj(pagesN, "<< /Type /Pages /Count "+pageObjNums.length+" /Kids ["+pageObjNums.map(p=>p[0]+" 0 R").join(" ")+"] >>");
+  fonts.forEach(f=>obj(fontNums[f], "<< /Type /Font /Subtype /Type1 /BaseFont /"+fontResNames[f]+" /Encoding /WinAnsiEncoding >>"));
+  xobjs.forEach(k=>{
+    const m=cfg.images[k], b=xobjBody[k];
+    obj(xobjNums[k], { __stream:true,
+      dict: "<< /Type /XObject /Subtype /Image /Width "+m.w+" /Height "+m.h+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+b.length+" >>",
+      data:b, len:b.length });
+  });
+  pageObjNums.forEach(function(pairo,i){
+    obj(pairo[0], "<< /Type /Page /Parent "+pagesN+" 0 R /MediaBox [0 0 "+n3(W)+" "+n3(H)+"] /Resources "+resources+" /Contents "+pairo[1]+" 0 R >>");
+    obj(pairo[1], { __stream:true, dict:"<< /Length "+contents[i].length+" >>", data:contents[i], len:contents[i].length });
+  });
+  obj(infoN, "<< /Title "+pdfStr(translit("Rapport des dépenses de déplacement - "+cfg.periodLabel))+
+    " /Author "+pdfStr(translit(cfg.company))+" /Subject "+pdfStr(translit("Suivi des dépenses de déplacement"))+
+    " /Creator "+pdfStr("Plateforme VOOMNET")+" /Producer "+pdfStr("Plateforme VOOMNET - moteur PDF interne")+" >>");
+
+  /* sérialisation */
+  const chunks=[]; let offset=0;
+  const offsets=new Array(maxN+1).fill(0);
+  function push(u8){ chunks.push(u8); offset+=u8.length; }
+  function pushStr(s){ push(latin1Bytes(s)); }
+  pushStr("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  for(let i=1;i<=maxN;i++){
+    const body=objs[i]; if(!body) continue;
+    offsets[i]=offset;
+    if(body && body.__stream){
+      pushStr(i+" 0 obj\n"+body.dict+"\nstream\n");
+      push(body.data);
+      pushStr("\nendstream\nendobj\n");
+    }else{
+      pushStr(i+" 0 obj\n"+body+"\nendobj\n");
+    }
+  }
+  const xrefPos=offset;
+  let xref="xref\n0 "+(maxN+1)+"\n0000000000 65535 f \n";
+  for(let i=1;i<=maxN;i++){
+    xref += String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+  }
+  pushStr(xref);
+  pushStr("trailer\n<< /Size "+(maxN+1)+" /Root 1 0 R /Info "+infoN+" 0 R >>\nstartxref\n"+xrefPos+"\n%%EOF\n");
+
+  const out=new Uint8Array(offset); let p=0;
+  chunks.forEach(c=>{ out.set(c,p); p+=c.length; });
+  return out;
+}
+
+/* ============================================================================
+   PRÉPARATION DES DONNÉES + LANCEMENT
+   ============================================================================ */
+function pdfImageMeta(key){
+  const L=LOGOS[key]; const b=logoBytes(key);
+  return { uri:L.uri, w:L.w, h:L.h, bytes:b };
+}
+function buildPDF(thenDownload){
+  const R=reportData();
+  const bytesMap={}, images={};
+  /* index des images nécessaires */
+  const keys=[];
+  SERVICES.forEach(s=>{ if(s.logo && keys.indexOf(s.logo)<0) keys.push(s.logo); });
+  if(keys.indexOf("head")<0) keys.push("head");
+  keys.forEach((k,i)=>{
+    const m=pdfImageMeta(k);
+    images[k]={ idx:i, w:m.w, h:m.h, label:({
+      tech:"VOOMNET TECHNOLOGY", encaci:"ENCACI", form:"VOOMNET FORMATION",
+      direction:"DIRECTION G\u00C9N\u00C9RALE", head:"VOOMNET"})[k]||"" };
+    bytesMap[k]=m.bytes;
+  });
+  const svRows=R.byServiceRows;
+  const svList=svRows.map(r=>({ name:r.s.name, role:r.s.role, logoKey:r.s.logo, n:r.n, total:r.total, accent:r.s.color2,
+     agentsTxt: (function(){ const names=[]; R.list.forEach(t=>{ if(t.service===r.s.id && names.indexOf(t.agent)<0) names.push(t.agent); });
+       return names.length? names.join(", ") : "—"; })(),
+     part: R.total? (r.total/R.total*100).toFixed(1).replace(".",",")+" %" : "0,0 %" }));
+  while(svList.length<1) break;
+  const trRows=R.byTransportRows.map(t=>({ label:t.label, n:t.n, total:t.total,
+     part: R.total? (t.total/R.total*100).toFixed(1).replace(".",",")+" %" : "0,0 %" }));
+  if(!trRows.length) trRows.push({ label:"Aucun déplacement enregistré sur cette période", n:0, total:0, part:"-", empty:true });
+  const topSvc=[...svList].sort((a,b)=>b.total-a.total)[0];
+  const topTr=[...trRows].sort((a,b)=>b.total-a.total)[0];
+  const fmt=n=>fmtN(n);
+
+  const cfg={
+    company: DB.params.nom, slogan: DB.params.slogan, ville: DB.params.ville, tel: DB.params.tel,
+    devise: DB.params.devise,
+    periodLabel: monthLabel(R.m), dateFR: dateFR(todayISO()),
+    scope: $("#rService").value? svc($("#rService").value).name : "Toute l'entreprise (tous services)",
+    detail: $("#rDetail").checked, sign: $("#rSign").checked,
+    images, imageBytes: bytesMap,
+    strip: ($("#rLogos").checked? keys.filter(k=>k!=="head") : []).concat($("#rLogos").checked? ["head"]:[]),
+    kpis: [
+      { label:"Total du mois", value: fmt(R.total)+" "+DB.params.devise, note: R.list.length+" déplacement(s)" },
+      { label:"Dépense moyenne", value: fmt(R.list.length? R.total/R.list.length:0)+" "+DB.params.devise, note:"par sortie enregistrée" },
+      { label:"Sorties du mois", value: fmt(R.list.length), note:"tous services confondus" },
+      { label:"Restant à régler", value: fmt(R.open)+" "+DB.params.devise, note:R.list.filter(t=>t.statut==="A_REGLE").length+" non réglé(s)", gold:true }
+    ],
+    services: svList, nb: R.list.length, total: R.total, open: R.open,
+    openN: R.list.filter(t=>t.statut==="A_REGLE").length,
+    avg: R.list.length? R.total/R.list.length : 0,
+    transports: trRows,
+    topSvc: topSvc? topSvc.name : "", topSvcTotal: topSvc? fmt(topSvc.total):"",
+    topTr: topTr? topTr.label : "", topTrN: topTr? topTr.n : 0,
+    trips: R.list.map(t=>({ dateFR: dateFR(t.date), serviceShort: svc(t.service).short, color: svc(t.service).color,
+      agent: t.agent||"—", motif: t.motif, route: (t.from||"—")+" \u2192 "+(t.to||"—"), transport: t.transport, montant: t.montant })),
+    fmt: fmt
+  };
+  if(!cfg.strip.length) cfg.strip=[];
+
+  let bytes;
+  try{ bytes=makePDF(cfg); }
+  catch(err){ try{console.error("[VOOMNET] Erreur PDF :",err);}catch(e){} toast("Erreur PDF","Impossible de générer le document : "+err.message,"err"); return; }
+
+  const fname="VOOMNET_Rapport_Depenses_"+R.m+".pdf";
+  const blob=new Blob([bytes],{type:"application/pdf"});
+  if(thenDownload==="picker"){
+    /* « Enregistrer sous » : l'utilisateur choisit l'emplacement sur son appareil */
+    saveWithPicker(blob,fname).then(function(r){
+      if(r.mode==="abort"){ toast("Enregistrement annulé","Utilisez « Télécharger le PDF » pour envoyer le fichier dans vos Téléchargements.","info"); return; }
+      if(r.ok) toast("Enregistré sur votre appareil ✅",(r.name||fname)+" ("+Math.round(bytes.length/1024)+" Ko) — à l'emplacement choisi.");
+      else { saveAndTell(blob,fname,function(){ buildPDF(true); }); }
+    });
+    return;
+  }
+  if(thenDownload){
+    /* téléchargement DIRECT → dossier « Téléchargements » de l'appareil */
+    saveAndTell(blob,fname,function(){ buildPDF(true); });
+    return;
+  }else{
+    try{
+      const url=URL.createObjectURL(blob);
+      const w=window.open(url,"_blank");
+      if(!w) throw new Error("popup");
+      setTimeout(()=>URL.revokeObjectURL(url),20000);
+      toast("Aperçu PDF ouvert","Utilisez le bouton de téléchargement de la visionneuse.","ok");
+    }catch(e){
+      toast("Aperçu impossible","Le navigateur a bloqué l'ouverture. Utilisez « Télécharger le PDF ».","err");
+    }
+  }
+}
+window.buildPDF=buildPDF;
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1011 @@
+<script>
+/* ============================================================================
+   VOOMNET TRACK — MODULES D'AFFICHAGE PREMIUM
+   Graphiques SVG natifs (grille subtile, animations, tooltips), KPI, modules
+   Véhicules, Collaborateurs et Analyse.
+   ============================================================================ */
+"use strict";
+
+/* ------------------------------ 1. OUTILS GRAPHIQUES ------------------------------ */
+const SVG_STYLE = '<style>'+
+  '@keyframes vtDraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}'+
+  '@keyframes vtFade{from{opacity:0}to{opacity:1}}'+
+  '.vt-line{stroke-dasharray:1;stroke-dashoffset:1;animation:vtDraw 1.15s cubic-bezier(.16,1,.3,1) forwards}'+
+  '.vt-area{opacity:0;animation:vtFade .9s ease .25s forwards}'+
+  '.vt-pt{opacity:0;animation:vtFade .5s ease .55s forwards}'+
+  '.vt-bar{transform-box:fill-box;transform-origin:bottom;animation:vtBar .75s cubic-bezier(.16,1,.3,1) both}'+
+  '@keyframes vtBar{from{transform:scaleY(0)}to{transform:scaleY(1)}}'+
+  '</style>';
+
+function smoothPath(pts){
+  if(pts.length<2) return "";
+  let d="M"+pts[0][0].toFixed(1)+" "+pts[0][1].toFixed(1);
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
+    const c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+    const c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=" C"+c1x.toFixed(1)+" "+c1y.toFixed(1)+" "+c2x.toFixed(1)+" "+c2y.toFixed(1)+" "+p2[0].toFixed(1)+" "+p2[1].toFixed(1);
+  }
+  return d;
+}
+
+/* ---- Graphique d'évolution : violet doux + or, grille subtile, tooltip, légende ---- */
+function areaChart(series, opts){
+  opts=opts||{};
+  const W=800, H=326, L=66, R=28, T=46, B=48;
+  const iw=W-L-R, ih=H-T-B;
+  const VIOLET="#6B4A82", VIOLET_D="#4A2A63", GOLD="#C9A227";
+  const max = Math.max(1, ...series.map(s=>s.value));
+  const pow = Math.pow(10, Math.floor(Math.log10(max)));
+  const nice = pow * (max/pow>5?10:5);
+  const step = series.length>1? iw/(series.length-1) : iw;
+  const x = i => L + (series.length>1? i*step : iw/2);
+  const y = v => T + ih - (v/nice)*ih;
+  const pts = series.map((s,i)=>[x(i), y(s.value)]);
+  const line = smoothPath(pts);
+  const area = line + " L"+x(series.length-1).toFixed(1)+" "+(T+ih)+" L"+L+" "+(T+ih)+" Z";
+  const total = series.reduce((a,b)=>a+b.value,0);
+  const average = series.length? total/series.length : 0;
+  const avgY = y(average);
+
+  let grid="", labels="", dots="", hit="";
+  for(let g=0; g<=4; g++){
+    const gy = T + ih*g/4, val = nice*(1-g/4);
+    grid += '<line x1="'+L+'" y1="'+gy.toFixed(1)+'" x2="'+(W-R)+'" y2="'+gy.toFixed(1)+'" stroke="'+
+      (g===4? "#E4DEE9":"#F0EBF4")+'" stroke-width="1"'+(g===4?"":' stroke-dasharray="3 6"')+'/>';
+    labels += '<text x="'+(L-14)+'" y="'+(gy+4).toFixed(1)+'" text-anchor="end" font-size="11" font-weight="600" fill="#9A95A0">'+esc(fmtShort(val))+'</text>';
+  }
+  series.forEach((s,i)=>{
+    const px=x(i);
+    labels += '<text x="'+px.toFixed(1)+'" y="'+(H-16)+'" text-anchor="middle" font-size="11" font-weight="'+(s.current?"700":"600")+
+      '" fill="'+(s.current? VIOLET_D:"#9A95A0")+'">'+esc(s.label)+'</text>';
+    hit += '<rect x="'+(px-step/2).toFixed(1)+'" y="'+T+'" width="'+step.toFixed(1)+'" height="'+ih+'" fill="transparent" style="cursor:pointer" '+
+      'data-tip="'+esc(s.tipLabel||s.label)+'" data-tipv="'+esc(fmtN(s.value)+" "+DB.params.devise)+'" data-tips="'+
+      esc((s.count||0)+" déplacement"+(s.count>1?"s":"")+(s.nb? " · "+s.nb+" collaborateur(s)" : ""))+
+      '" data-x="'+px.toFixed(1)+'" data-y="'+y(s.value).toFixed(1)+'"/>';
+  });
+  series.forEach((s,i)=>{
+    if(!s.value) return;
+    const px=x(i), py=y(s.value);
+    dots += '<circle class="vt-pt" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="'+(s.current?5.5:3.8)+'" fill="#fff" stroke="'+
+      (s.current? GOLD:VIOLET)+'" stroke-width="'+(s.current?3:2.2)+'"/>';
+    if(s.current){
+      dots += '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="11" fill="none" stroke="'+GOLD+'" stroke-width="1.2" opacity=".38"/>'+
+        '<text x="'+px.toFixed(1)+'" y="'+(py-20).toFixed(1)+'" text-anchor="end" font-size="12" font-weight="750" fill="'+VIOLET_D+'">'+esc(fmtN(s.value))+'</text>';
+    }
+  });
+  /* ligne de moyenne — repère doré discret */
+  const avgLine = '<line x1="'+L+'" y1="'+avgY.toFixed(1)+'" x2="'+(W-R)+'" y2="'+avgY.toFixed(1)+'" stroke="'+GOLD+'" stroke-width="1.4" stroke-dasharray="6 6" opacity=".55"/>';
+
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Évolution des dépenses">'+
+    SVG_STYLE+
+    '<defs><linearGradient id="vtArea" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0" stop-color="'+VIOLET+'" stop-opacity=".18"/><stop offset="1" stop-color="'+VIOLET+'" stop-opacity="0"/></linearGradient></defs>'+
+    grid+avgLine+labels+
+    '<path class="vt-area" d="'+area+'" fill="url(#vtArea)"/>'+
+    '<path class="vt-line" d="'+line+'" fill="none" stroke="'+VIOLET+'" stroke-width="2.8" stroke-linecap="round" pathLength="1"/>'+
+    dots+hit+
+    '</svg>'+
+    '<div class="chart-legend">'+
+      '<span class="lg-item"><span class="sw line" style="background:'+VIOLET+'"></span> Dépenses mensuelles</span>'+
+      '<span class="lg-item"><span class="sw" style="background:'+GOLD+'"></span> Mois analysé</span>'+
+      '<span class="lg-item"><span class="sw dash"></span> Moyenne '+esc(fmtN(average))+' '+esc(DB.params.devise)+'/mois</span>'+
+    '</div>'+
+    '<div class="flex-between" style="margin-top:12px">'+
+      '<span class="small">Cumul de la période : <b style="color:var(--primary)">'+fmtN(total)+' '+esc(DB.params.devise)+'</b></span>'+
+      '<span class="small">'+(series.length)+' mois analysés</span>'+
+    '</div>';
+}
+
+/* ---- Barres groupées par entité (Analyse) ---- */
+function groupedBars(months, series){
+  const W=760, H=320, L=58, R=20, T=18, B=54;
+  const iw=W-L-R, ih=H-T-B;
+  const max = Math.max(1, ...series.map(s=>Math.max(...s.values)));
+  const nice = Math.pow(10, Math.floor(Math.log10(max))) * (max/Math.pow(10,Math.floor(Math.log10(max)))>5?10:5);
+  const groupW = iw/months.length;
+  const nb = series.length;
+  const bw = Math.min(16, (groupW*0.62)/nb);
+  let grid="", bars="", labels="";
+  for(let g=0; g<=4; g++){
+    const gy=T+ih*g/4;
+    grid += '<line x1="'+L+'" y1="'+gy.toFixed(1)+'" x2="'+(W-R)+'" y2="'+gy.toFixed(1)+'" stroke="#EDEAF3" stroke-width="1" stroke-dasharray="'+(g===4?"0":"4 5")+'"/>';
+    labels += '<text x="'+(L-12)+'" y="'+(gy+4).toFixed(1)+'" text-anchor="end" font-size="11" font-weight="600" fill="#9C97A3">'+esc(fmtShort(nice*(1-g/4)))+'</text>';
+  }
+  months.forEach((m,i)=>{
+    const gx = L + groupW*i + groupW/2;
+    labels += '<text x="'+gx.toFixed(1)+'" y="'+(H-18)+'" text-anchor="middle" font-size="11" font-weight="600" fill="#77727D">'+esc(monthShortLabel(m))+'</text>';
+    series.forEach((s,j)=>{
+      const v=s.values[i]||0;
+      const h=Math.max(0,(v/nice)*ih);
+      const bx=gx-(nb*bw)/2 + j*bw + 1;
+      if(h<=0) return;
+      bars += '<rect class="vt-bar" x="'+bx.toFixed(1)+'" y="'+(T+ih-h).toFixed(1)+'" width="'+(bw-2).toFixed(1)+'" height="'+h.toFixed(1)+'" rx="3" fill="'+s.color+'" style="animation-delay:'+(i*45+j*20)+'ms" '+
+        'data-tip="'+esc(s.name+" · "+monthShortLabel(m))+'" data-tipv="'+esc(fmtN(v)+" "+DB.params.devise)+'"/>';
+    });
+  });
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img">'+SVG_STYLE+grid+bars+labels+'</svg>'+
+    '<div class="legend">'+series.map(s=>'<div class="li"><span class="sw" style="background:'+s.color+'"></span>'+esc(s.name)+'</div>').join("")+'</div>';
+}
+
+/* ---- Anneau (répartition) ---- */
+function donut(items, total, opts){
+  opts=opts||{};
+  const W=270, H=270, cx=135, cy=135, r=104, sw=17;
+  const T=items.reduce((a,b)=>a+b.value,0)||1;
+  const c=2*Math.PI*r;
+  let off=0, arcs="";
+  items.forEach((it,i)=>{
+    const frac=it.value/T, len=frac*c;
+    arcs += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+it.color+'" stroke-width="'+sw+'" stroke-linecap="butt" '+
+      'stroke-dasharray="'+Math.max(0,len-3).toFixed(1)+' '+(c-Math.max(0,len-3)).toFixed(1)+'" stroke-dashoffset="'+(-off).toFixed(1)+'" '+
+      'style="transform:rotate(-90deg);transform-origin:'+cx+'px '+cy+'px;opacity:0;animation:vtFade .7s ease '+(i*70)+'ms forwards" '+
+      'data-tip="'+esc(it.label)+'" data-tipv="'+esc(fmtN(it.value)+" "+DB.params.devise)+'" data-tips="'+esc(((it.value/T)*100).toFixed(1)+" % du total")+'"/>';
+    off += len;
+  });
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" style="max-width:270px;margin:0 auto">'+SVG_STYLE+arcs+
+    '<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" class="donut-center">'+esc(opts.centerLabel||fmtShort(total))+'</text>'+
+    '<text x="'+cx+'" y="'+(cy+18)+'" text-anchor="middle" class="donut-sub">'+esc(opts.centerSub||DB.params.devise)+'</text>'+
+    '</svg>';
+}
+function donutBlock(items, total, opts){
+  opts=opts||{};
+  const legend = '<div class="legend'+(opts.stack? ' legend-stack':'')+'" style="flex-direction:column;gap:10px;margin-top:0">'+items.slice(0,8).map(it=>
+      '<div class="li" style="width:100%"><span class="sw" style="background:'+it.color+'"></span>'+
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.label)+'</span>'+
+      '<b style="white-space:nowrap">'+fmtN(it.value)+'<span class="small" style="margin-left:4px">'+esc(DB.params.devise)+'</span></b>'+
+      '<span class="pct" style="min-width:34px;text-align:right">'+((it.value/(total||1))*100).toFixed(0)+'%</span></div>').join("")+
+    '</div>';
+  if(opts.stack) return '<div class="donut-stack">'+donut(items,total,opts)+legend+'</div>';
+  return '<div class="donut-grid">'+donut(items,total,opts)+legend+'</div>';
+}
+
+/* ---- Barres horizontales (HTML, avec logos) ---- */
+function hbars(items, opts){
+  opts=opts||{};
+  const max=Math.max(1,...items.map(i=>i.value));
+  return '<div style="display:flex;flex-direction:column;gap:4px">'+items.map(it=>
+    '<div class="bar-row">'+
+      '<div class="nm" style="min-width:150px">'+(it.logo? '<span class="logo-box sm">'+it.logo+'</span>' : (it.icon? '<span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:'+hexA(it.color||"#4A2A63",.1)+';color:'+(it.color||"#4A2A63")+'">'+ic(it.icon)+'</span>':''))+
+        '<span><b style="font-weight:620;color:var(--ink)">'+esc(it.label)+'</b>'+(it.sub? '<span class="small" style="display:block">'+esc(it.sub)+'</span>':'')+'</span></div>'+
+      '<div class="bar-track"><i data-w="'+((it.value/max)*100).toFixed(1)+'" style="background:'+(it.grad|| "linear-gradient(90deg,"+(it.color||"#6B4A82")+","+hexA(it.color||"#6B4A82",.55)+")")+'"></i></div>'+
+      '<div class="vl">'+fmtN(it.value)+'</div>'+
+    '</div>').join("")+'</div>';
+}
+function animateBars(root){
+  $$("[data-w]", root).forEach((el,i)=>{
+    setTimeout(()=>{ el.style.width = el.dataset.w+"%"; }, 60+i*45);
+  });
+}
+
+/* ---- Micro-sparkline pour les KPI ---- */
+function sparkline(values, color){
+  /* une série plate ou vide n'apporte rien : on n'affiche pas de trait orphelin */
+  const nz=values.filter(v=>Number(v)>0);
+  if(nz.length<2) return "";
+  const W=86, H=30, max=Math.max(1,...values), n=values.length;
+  const pts=values.map((v,i)=>[ (n>1? i*(W/(n-1)) : W/2), H-2 - (v/max)*(H-6) ]);
+  const d=smoothPath(pts);
+  return '<svg viewBox="0 0 '+W+' '+H+'" class="spark" aria-hidden="true"><path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" opacity=".55"/></svg>';
+}
+
+/* ---- Tooltips globaux ---- */
+function bindChartTips(){
+  const tip=$("#chartTip");
+  document.querySelectorAll("[data-tip]").forEach(el=>{
+    el.addEventListener("mouseenter",e=>{
+      tip.innerHTML="<b>"+esc(el.dataset.tip)+"</b><div class=\"v\">"+esc(el.dataset.tipv)+"</div>"+
+        (el.dataset.tips? '<div style="font-size:11px;opacity:.75;margin-top:2px">'+esc(el.dataset.tips)+'</div>':'');
+      tip.classList.add("on");
+    });
+    el.addEventListener("mousemove",e=>{
+      const pad=14; let x=e.clientX+pad, y=e.clientY-pad;
+      const w=tip.offsetWidth, h=tip.offsetHeight;
+      if(x+w>window.innerWidth-10) x=e.clientX-w-pad;
+      if(y-h<10) y=e.clientY+h+pad;
+      tip.style.left=x+"px"; tip.style.top=y+"px";
+    });
+    el.addEventListener("mouseleave",()=>tip.classList.remove("on"));
+  });
+}
+
+/* ------------------------------ 2. KPI ------------------------------ */
+function monthStats(m){
+  const list=tripsOf(m), prev=tripsOf(shiftMonth(m,-1));
+  return {
+    list, n:list.length, total:sum(list), km:sumKm(list),
+    open:sum(list.filter(t=>t.statut==="A_REGLE")), openN:list.filter(t=>t.statut==="A_REGLE").length,
+    avg:list.length? sum(list)/list.length : 0,
+    pn:prev.length, ptotal:sum(prev), pkm:sumKm(prev)
+  };
+}
+/* compteur animé (respecte prefers-reduced-motion) — valeurs de KPI */
+function animateValue(el, target, unit){
+  if(!el) return;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fmt = v => fmtN(Math.round(v));
+  if(reduce || !target){ el.textContent=fmt(target||0); return; }
+  const dur=760, t0=performance.now();
+  const step=now=>{
+    const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
+    el.textContent=fmt(target*e);
+    if(p<1 && el.isConnected) requestAnimationFrame(step); else el.textContent=fmt(target);
+  };
+  requestAnimationFrame(step);
+}
+function kpiCard(o){
+  const d = o.delta;
+  let dHtml="";
+  if(d===null) dHtml="";                        /* pas de comparaison : aucun badge */
+  else if(Math.abs(d)<1) dHtml='<span class="delta flat">'+ic("check")+' stable</span>';
+  else dHtml='<span class="delta '+(o.invert? (d>0?"down":"up") : (d>0?"up":"down"))+'">'+ic(d>0?"arrowUp":"arrowDown")+Math.abs(d).toFixed(0)+'%</span>';
+  return '<div class="kpi '+(o.tone||"")+' reveal" style="--i:'+(o.i||0)+'" '+(o.tip? 'title="'+esc(o.tip)+'"':'')+'>'+
+    '<div class="kpi-top"><span class="lbl">'+esc(o.label)+'</span><span class="ic-wrap">'+ic(o.icon)+'</span></div>'+
+    '<div class="val"><span class="num"'+(o.amount!==undefined? ' data-count="'+o.amount+'"':'')+'>'+o.value+'</span>'+(o.unit? ' <small>'+esc(o.unit)+'</small>':'')+'</div>'+
+    '<div class="foot">'+dHtml+'<span>'+o.foot+'</span></div>'+
+    (o.spark||"")+
+  '</div>';
+}
+
+/* ------------------------------ 3. TABLEAU DE BORD RH CENTRALISÉ ------------------------------
+   Un seul espace de pilotage : les filtres s'appliquent à l'ensemble du tableau de bord.
+   Les services et les collaborateurs sont des DONNÉES (jamais des espaces indépendants).
+   ---------------------------------------------------------------------------------------------- */
+let evoRange=6;
+let dashFilters = { service:"", agent:"", type:"" };
+
+/* trajets correspondant aux filtres globaux (période + service + collaborateur + type) */
+function dashTrips(month){
+  const m = month || $("#dashMonth").value || currentMonth();
+  const f = dashFilters;
+  return DB.trips.filter(t=>{
+    if(monthOf(t.date)!==m) return false;
+    if(f.service && t.service!==f.service) return false;
+    if(f.agent && t.agent!==f.agent) return false;
+    if(f.type && t.transport!==f.type) return false;
+    return true;
+  });
+}
+function dashMonthPrev(month){
+  const pm = shiftMonth(month,-1);
+  const f = dashFilters;
+  return DB.trips.filter(t=>{
+    if(monthOf(t.date)!==pm) return false;
+    if(f.service && t.service!==f.service) return false;
+    if(f.agent && t.agent!==f.agent) return false;
+    if(f.type && t.transport!==f.type) return false;
+    return true;
+  });
+}
+function renderFilterChips(){
+  const m=$("#dashMonth").value||currentMonth();
+  const chips=[
+    '<span class="chip violet">'+ic("calendar")+'<b>'+esc(monthLabel(m))+'</b></span>'
+  ];
+  if(dashFilters.service) chips.push('<span class="chip">'+ic("building")+esc(svc(dashFilters.service).name)+'</span>');
+  if(dashFilters.agent)   chips.push('<span class="chip">'+ic("users")+esc(dashFilters.agent)+'</span>');
+  if(dashFilters.type)    chips.push('<span class="chip">'+ic("route")+esc(dashFilters.type)+'</span>');
+  const active = (dashFilters.service||dashFilters.agent||dashFilters.type);
+  chips.push(active? '<span class="chip ok">'+ic("check")+'Filtres actifs</span>' : '<span class="chip">'+ic("info")+'Toute l\'organisation</span>');
+  $("#filterChips").innerHTML = chips.join("");
+}
+
+/* ============ SUIVI TRANSPORT (design technologique) ============ */
+function renderTracking(m){
+  const base=dashTrips(m), n=base.length, tot=sum(base);
+  const just=base.filter(t=>t.justif==="OUI"), reg=base.filter(t=>t.statut==="REGLE");
+  const att=base.filter(t=>t.statut==="A_REGLE"), attTot=sum(att);
+  const pct=x=> n? Math.round(x/n*100) : 0;
+
+  /* --- 1. Chaîne de traitement --- */
+  const steps=[
+    {ico:"list",  l:"Enregistrés",  v:n,               s:"sortie(s) sur la période", p:pct(n),        gold:false},
+    {ico:"shield",l:"Justifiés",    v:just.length,     s:pct(just.length)+"% avec justificatif", p:pct(just.length), gold:false},
+    {ico:"check", l:"Réglés",       v:reg.length,      s:fmtN(sum(reg))+" "+DB.params.devise, p:pct(reg.length), gold:false},
+    {ico:"clock", l:"À régler",     v:att.length,      s:fmtN(attTot)+" "+DB.params.devise, p:pct(att.length), gold:true,
+      clic:{vue:"registre",statut:"A_REGLE"}}
+  ];
+  const elF=$("#flowTrack");
+  if(elF){
+    elF.innerHTML = steps.map((st,i)=>
+      '<div class="fnode'+(st.gold? " gold":"")+(st.v?"":" dim")+'"'+(st.clic? ' data-clic="1" data-go-vue="'+st.clic.vue+'" data-go-statut="'+st.clic.statut+'"':'')+'>'+
+        '<div class="fh"><span class="fico">'+ic(st.ico)+'</span><span class="fl">'+st.l+'</span></div>'+
+        '<div class="fv">'+fmtN(st.v)+'</div><div class="fs">'+esc(st.s)+'</div>'+
+        '<div class="fbar"><i style="width:'+st.p+'%"></i></div>'+
+      '</div>' + (i<steps.length-1? '<div class="fconn"></div>' : "")
+    ).join("");
+    /* clic : ouvre le registre pré-filtré (filtre global, jamais un écran séparé) */
+    $$("#flowTrack [data-clic]").forEach(el=>{
+      el.onclick=()=>{
+        const st=el.dataset.goStatut;
+        const sel=$("#fStatut2");                 /* filtre du registre */
+        if(sel && st) sel.value=st;
+        go("registre");
+        page=1; renderRegistre();
+        toast("Registre filtré", st==="A_REGLE"? "Déplacements en attente de règlement." : "Déplacements réglés.","info");
+      };
+    });
+  }
+
+  /* --- 2. Flux de mobilité récent --- */
+  const elT=$("#mobTimeline");
+  if(elT){
+    const last=base.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,6);
+    elT.innerHTML = last.length? last.map(t=>{
+      const s=svc(t.service);
+      const cls = t.statut==="REGLE"? " is-ok" : (t.justif==="NON"? " is-gold":"");
+      const ico = t.statut==="REGLE"? "check" : (t.justif==="NON"? "alert":"clock");
+      return '<div class="tl-item'+cls+'">'+
+        '<div class="tl-rail"><span class="tl-dot">'+ic(ico)+'</span></div>'+
+        '<div class="tl-body">'+
+          '<div class="tl-top">'+
+            '<span class="tl-date">'+esc(dateFR(t.date))+'</span>'+
+            serviceTag(t.service)+statusTag(t.statut)+
+            (t.justif==="NON"? '<span class="tag" style="background:var(--warn-bg);color:#8A6F14">'+ic("alert")+'Justificatif à fournir</span>':"")+
+          '</div>'+
+          '<div class="route-viz" style="width:100%">'+
+            '<span class="rv-a"></span><span class="rv-pt" title="'+esc(t.from||"")+'">'+esc(t.from||"—")+'</span>'+
+            '<svg class="rv-line" viewBox="0 0 60 10" preserveAspectRatio="none" aria-hidden="true"><path d="M1 5 H59"/><circle cx="30" cy="5" r="2.1"/></svg>'+
+            '<span class="rv-pt" title="'+esc(t.to||"")+'">'+esc(t.to||"—")+'</span><span class="rv-b"></span>'+
+          '</div>'+
+          '<div class="tl-motif" title="'+esc(t.motif)+'">'+esc(t.motif)+'</div>'+
+          '<div class="tl-meta">'+
+            '<span>'+ic("user")+'</span>'+esc(t.agent||"—")+
+            '<span class="sep"></span><span>'+ic("fuel")+'</span>'+esc(t.transport||"—")+
+            (Number(t.km)? '<span class="sep"></span>'+fmtN(t.km)+' km':'')+
+            '<span class="tl-amt">'+fmtN(t.montant)+' '+esc(DB.params.devise)+'</span>'+
+          '</div>'+
+        '</div></div>';
+    }).join("") : emptyState("route","Aucun mouvement sur la période","Ajustez la période ou les filtres.");
+    hydrateIcons(elT);
+  }
+
+  /* --- 3. Réseau & trajets --- */
+  const elN=$("#netStats");
+  if(elN){
+    const parTrajet={}, parTrans={};
+    base.forEach(t=>{
+      const k=(t.from&&t.to)? (t.from+" → "+t.to) : null;
+      if(k){ parTrajet[k]=parTrajet[k]||{n:0,m:0}; parTrajet[k].n++; parTrajet[k].m+=Number(t.montant)||0; }
+      const tr=t.transport||"—"; parTrans[tr]=parTrans[tr]||{n:0,m:0}; parTrans[tr].n++; parTrans[tr].m+=Number(t.montant)||0;
+    });
+    const topT=Object.entries(parTrajet).sort((a,b)=>b[1].n-a[1].n).slice(0,3);
+    const topM=Object.entries(parTrans).sort((a,b)=>b[1].n-a[1].n).slice(0,3);
+    const maxN=topT.length? topT[0][1].n : 1, maxM=topM.length? topM[0][1].n : 1;
+    const rowsT=topT.map(([k,v])=>
+      '<div class="net-row"><div class="net-top"><span class="ic" style="width:14px;height:14px;color:var(--secondary)">'+ic("route")+'</span>'+
+      '<span class="route-viz mini" style="gap:5px"><span class="rv-a"></span>'+
+      '<span class="rv-pt" style="max-width:96px">'+esc(k.split(" → ")[0])+'</span>'+
+      '<svg class="rv-line" viewBox="0 0 60 10" preserveAspectRatio="none"><path d="M1 5 H59"/><circle cx="30" cy="5" r="2.1"/></svg>'+
+      '<span class="rv-pt" style="max-width:96px">'+esc(k.split(" → ")[1]||"")+'</span><span class="rv-b"></span></span>'+
+      '<span class="nb">'+v.n+'× · '+fmtN(v.m)+'</span></div>'+
+      '<div class="net-bar"><i style="width:'+(v.n/maxN*100).toFixed(0)+'%;background:linear-gradient(90deg,var(--primary),var(--secondary))"></i></div></div>').join("");
+    const rowsM=topM.map(([k,v])=>
+      '<div class="net-row"><div class="net-top"><span class="ic" style="width:14px;height:14px;color:var(--accent-600)">'+ic("fuel")+'</span>'+
+      '<span>'+esc(k)+'</span><span class="nb">'+v.n+'× · '+fmtN(v.m)+'</span></div>'+
+      '<div class="net-bar"><i style="width:'+(v.n/maxM*100).toFixed(0)+'%;background:linear-gradient(90deg,var(--accent),var(--accent-300))"></i></div></div>').join("");
+    elN.innerHTML = (topT.length? rowsT + '<div style="height:4px"></div>' : "") + (topM.length? rowsM : "") +
+      '<div class="net-legend">'+
+        '<span>Distance cumulée : <b>'+fmtN(sumKm(base))+' km</b></span>'+
+        '<span>Coût moyen : <b>'+fmtN(n? tot/n:0)+' '+esc(DB.params.devise)+'</b></span>'+
+        '<span>Trajets distincts : <b>'+Object.keys(parTrajet).length+'</b></span>'+
+      '</div>';
+    if(!topT.length && !topM.length) elN.innerHTML = emptyState("gauge","Aucune liaison enregistrée","Renseignez les lieux de départ et d'arrivée des déplacements.");
+    hydrateIcons(elN);
+  }
+}
+
+function renderDashboard(){
+  const m=$("#dashMonth").value||currentMonth();
+  const list=dashTrips(m), prev=dashMonthPrev(m);
+  const n=list.length, total=sum(list), km=sumKm(list);
+  const avg = n? total/n : 0;
+  const pn=prev.length, ptotal=sum(prev);
+  const openList=list.filter(t=>t.statut==="A_REGLE"), okList=list.filter(t=>t.statut==="REGLE");
+  const agentsActifs = Array.from(new Set(list.map(t=>t.agent)));
+
+  /* --- 1. En-tête RH --- */
+  $("#welcomeTitle").innerHTML="Pilotage de la mobilité et des dépenses";
+  $("#welcomeSub").innerHTML="Synthèse consolidée de <b>"+esc(monthLabel(m))+"</b> — "+
+    fmtN(n)+" déplacement"+(n>1?"s":"")+" enregistré"+(n>1?"s":"")+" par "+
+    fmtN(agentsActifs.length)+" collaborateur"+(agentsActifs.length>1?"s":"")+", tous services confondus.";
+  const hs=function(l,v,u,cls,tip){ return '<div class="hs'+(cls? " "+cls:"")+'"'+(tip? ' title="'+esc(tip)+'"':'')+'>'+
+      '<b>'+v+(u? ' <s>'+esc(u)+'</s>':'')+'</b><span>'+l+'</span></div>'; };
+  $("#heroStats").innerHTML=
+    hs("Déplacements", fmtN(n), "", "", "Nombre de déplacements enregistrés sur la période")+
+    hs("Dépenses", fmtN(total), DB.params.devise, "", "Total des dépenses de mobilité de la période")+
+    (openList.length
+      ? hs("En attente", fmtN(openList.length), "", "gold", fmtN(sum(openList))+" "+DB.params.devise+" à régler")
+      : hs("Règlement", "À jour", "", "ok", "Tous les déplacements de la période sont réglés"))+
+    hs("Validés", fmtN(okList.length), "", "", "Déplacements réglés sur la période")+
+    hs("Distance", fmtN(km), "km", "", "Distance cumulée des trajets renseignés");
+
+  /* --- 2. Filtres globaux --- */
+  /* Filtre Service du tableau de bord : toujours alimenté avec les services réels
+     (l'ancien test « options.length » laissait la liste vide). */
+  const sSel=$("#gService");
+  if(sSel){
+    const voulu = '<option value="">Tous les services</option>'+
+      SERVICES.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("");
+    if(sSel.innerHTML!==voulu){
+      const garde=dashFilters.service||"";
+      sSel.innerHTML=voulu; sSel.value=garde;
+    }
+  }
+  const aSel=$("#gAgent");
+  if(aSel){
+    const cur=aSel.value;
+    const noms=Array.from(new Set(DB.agents.map(a=>a.nom))).sort((x,y)=>x.localeCompare(y,"fr"));
+    aSel.innerHTML='<option value="">Tous les collaborateurs</option>'+noms.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");
+    aSel.value = dashFilters.agent || cur || "";
+  }
+  const tSel=$("#gType"); if(tSel && tSel.options.length<2) tSel.innerHTML='<option value="">Tous les types</option>'+DB.transports.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join("");
+  if(sSel) sSel.value=dashFilters.service;
+  if(tSel) tSel.value=dashFilters.type;
+  renderFilterChips();
+
+  /* --- 3. KPI (6 cartes) --- */
+  const sparkTotals=monthRange(m,6).map(x=>sum(tripsOf(x)));
+  const sparkCounts=monthRange(m,6).map(x=>tripsOf(x).length);
+  $("#kpiRow").innerHTML=[
+    kpiCard({i:0, label:"Total des déplacements", icon:"list", value:fmtN(n),
+      foot:"vs "+fmtN(pn)+" le mois précédent", delta:deltaPct(n,pn), spark:sparkline(sparkCounts,"#6B4A82"),
+      tip:"Nombre de déplacements enregistrés sur la période"}),
+    kpiCard({i:1, label:"Dépenses de mobilité", icon:"wallet", value:fmtN(total), unit:DB.params.devise, tone:"gold",
+      foot:"mois précédent : "+fmtN(ptotal)+" "+DB.params.devise, delta:deltaPct(total,ptotal), spark:sparkline(sparkTotals,"#C9A227"),
+      tip:"Total des dépenses de déplacement de la période"}),
+    kpiCard({i:2, label:"Collaborateurs concernés", icon:"users", value:fmtN(agentsActifs.length), unit:"/ "+DB.agents.length,
+      foot:"ayant effectué au moins une sortie", delta:null, tone:"",
+      tip:"Personnes concernées par au moins un déplacement"}),
+    kpiCard({i:3, label:"Déplacements en attente", icon:"clock", value:fmtN(openList.length), tone:"warn",
+      foot:fmtN(sum(openList))+" "+DB.params.devise+" à régler", delta:null,
+      tip:"Déplacements dont le remboursement n'est pas encore réglé"}),
+    kpiCard({i:4, label:"Déplacements validés", icon:"check", value:fmtN(okList.length), tone:"ok",
+      foot:(n? Math.round(okList.length/n*100)+" % de la période" : "aucun déplacement"), delta:null,
+      tip:"Déplacements déjà réglés / remboursés"}),
+    kpiCard({i:5, label:"Coût moyen par déplacement", icon:"gauge", value:fmtN(avg), unit:DB.params.devise,
+      foot:"sur "+fmtN(n)+" déplacement(s)", delta:deltaPct(avg, pn? ptotal/pn : 0),
+      tip:"Dépense moyenne par déplacement de la période"})
+  ].join("");
+  /* compteurs animés sur les valeurs numériques des KPI */
+  $$("#kpiRow [data-count]").forEach(el=>animateValue(el, Number(el.dataset.count)));
+
+  /* --- 4. Évolution des dépenses --- */
+  const months=monthRange(m, evoRange);
+  const series=months.map(x=>{
+    const l=tripsOf(x).filter(t=>{
+      const f=dashFilters;
+      if(f.service && t.service!==f.service) return false;
+      if(f.agent && t.agent!==f.agent) return false;
+      if(f.type && t.transport!==f.type) return false;
+      return true;
+    });
+    return { label:MONTHS_SHORT[Number(x.split("-")[1])-1], tipLabel:monthLabel(x),
+      value:sum(l), count:l.length, nb:new Set(l.map(t=>t.agent)).size, current:(x===m) };
+  });
+  const ed=$("#evoDesc"); if(ed) ed.textContent=evoRange+" derniers mois — total mensuel consolidé, filtres appliqués";
+  $("#chartEvo").innerHTML = series.some(x=>x.value>0)
+    ? areaChart(series)
+    : emptyState("chart","Aucune dépense sur la période",
+        "Le graphique se construira automatiquement dès le premier déplacement enregistré.");
+
+  /* --- 5. Part des services (anneau) --- */
+  const aggSvc=byService(list);
+  const svcItems=SERVICES.map(x=>({ label:x.short, sub:x.role, value:aggSvc[x.id].total, n:aggSvc[x.id].n,
+    logo:(x.logo? '<img src="'+LOGOS[x.logo].uri+'" style="max-width:100%;max-height:28px;object-fit:contain">':'<span style="color:'+x.color2+'">'+ic(x.icon)+'</span>'),
+    color:x.color2 }));
+  $("#chartSvc").innerHTML = svcItems.some(x=>x.value>0)
+    ? donutBlock(svcItems.filter(x=>x.value>0), total, {centerSub:DB.params.devise, stack:true})
+    : emptyState("chart","Aucune dépense sur la période","Enregistrez un déplacement ou ajustez les filtres.");
+
+  /* --- 6. Répartition par service (cliquable = filtre) --- */
+  $("#svcList").innerHTML = SERVICES.map(x=>{
+    const cur=aggSvc[x.id], prv=(function(){
+      const pm=shiftMonth(m,-1);
+      return DB.trips.filter(t=>monthOf(t.date)===pm && t.service===x.id &&
+        (!dashFilters.agent || t.agent===dashFilters.agent) && (!dashFilters.type || t.transport===dashFilters.type));
+    })();
+    const share = total? (cur.total/total*100) : 0;
+    const delta = deltaPct(cur.total, sum(prv));
+    const dTxt = delta===null? "n/d" : (Math.abs(delta)<1? "stable" : (delta>0?"+":"")+delta.toFixed(0)+"%");
+    const on = dashFilters.service===x.id? " on":"";
+    return '<button type="button" class="svc-row'+on+'" data-svc-filter="'+x.id+'" aria-pressed="'+(on?"true":"false")+'">'+
+      '<span class="sv-logo">'+(x.logo? '<img src="'+LOGOS[x.logo].uri+'" alt="">' : '<span class="ic" style="color:'+x.color2+';width:22px;height:22px">'+ic(x.icon)+'</span>')+'</span>'+
+      '<span class="sv-name"><b>'+esc(x.name)+'</b><span>'+esc(x.role)+(x.id==="DIRECTION"? "":"")+'</span></span>'+
+      '<span class="sv-num">'+fmtN(cur.n)+'<span>déplacement(s)</span></span>'+
+      '<span class="sv-num">'+fmtN(cur.total)+'<span>'+esc(DB.params.devise)+'</span></span>'+
+      '<span class="sv-num hide-sm" style="color:'+(delta>0? "#B4645F" : delta<0? "#2C7F62" : "var(--muted)")+'">'+esc(dTxt)+'<span>vs mois -1</span></span>'+
+      '<span class="sv-share"><span class="sv-bar"><i style="transform:scaleX('+(share/100).toFixed(3)+')"></i></span><b>'+share.toFixed(0)+'%</b></span>'+
+      '<span class="sv-go">'+ic(dashFilters.service===x.id? "check":"chevRight")+'</span>'+
+    '</button>';
+  }).join("") + (dashFilters.service? '<div class="small" style="padding:6px 4px">Filtre actif : <b>'+esc(svc(dashFilters.service).name)+'</b> — cliquez de nouveau pour revenir à toute l\'organisation.</div>' : "");
+  $$("#svcList [data-svc-filter]").forEach(b=>b.onclick=()=>{
+    dashFilters.service = (dashFilters.service===b.dataset.svcFilter)? "" : b.dataset.svcFilter;
+    renderDashboard();
+    toast(dashFilters.service? "Filtre appliqué" : "Filtre retiré",
+          dashFilters.service? svc(dashFilters.service).name+" — le tableau de bord est filtré." : "Le tableau de bord affiche toute l'organisation.", "info");
+  });
+
+  /* --- 7. Activité des collaborateurs --- */
+  const q=($("#caSearch")? $("#caSearch").value : "").toLowerCase().trim();
+  const ba=byAgent(list);
+  const eff = dashFilters.agent? DB.agents.filter(a=>a.nom===dashFilters.agent) : DB.agents;
+  const rows = eff.filter(a=>{
+    if(dashFilters.service && a.service!==dashFilters.service) return false;
+    if(q && (a.nom+" "+svc(a.service).name).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  }).map(a=>{
+    const st=ba[a.nom]||{n:0,total:0,last:null};
+    const pen=list.filter(t=>t.agent===a.nom && t.statut==="A_REGLE");
+    return {a,st,pen};
+  }).sort((x,y)=>y.st.total-x.st.total);
+  $("#collabActivity").innerHTML = rows.length? '<table class="tbl" style="min-width:820px"><thead><tr>'+
+      '<th class="no-sort">Collaborateur</th><th class="no-sort">Service</th><th class="no-sort">Déplacements</th>'+
+      '<th class="no-sort">Dernier déplacement</th><th class="no-sort">Dépenses</th><th class="no-sort">Statut</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+
+      '<td><div class="avatar-row"><span class="avatar">'+esc(initials(r.a.nom))+'</span><span class="who"><b>'+esc(r.a.nom)+'</b><span>'+(r.a.actif===false? "Inactif":"Actif")+'</span></span></div></td>'+
+      '<td>'+serviceTag(r.a.service)+'</td>'+
+      '<td><b>'+fmtN(r.st.n)+'</b></td>'+
+      '<td>'+(r.st.last? dateFR(r.st.last) : "—")+'</td>'+
+      '<td class="amount strong">'+fmtN(r.st.total)+' <span class="small">'+esc(DB.params.devise)+'</span></td>'+
+      '<td>'+(r.st.n===0? '<span class="st-pill mute">'+ic("minus")+'Aucune sortie</span>'
+            : r.pen.length? '<span class="st-pill gold">'+ic("clock")+r.pen.length+' à régler</span>'
+            : '<span class="st-pill ok">'+ic("check")+'À jour</span>')+'</td>'+
+    '</tr>').join("")+'</tbody><tfoot><tr class="tfoot"><td colspan="2">'+rows.length+' collaborateur(s) affiché(s)</td>'+
+      '<td>'+rows.reduce((x,r)=>x+r.st.n,0)+'</td><td></td><td class="amount">'+fmtN(rows.reduce((x,r)=>x+r.st.total,0))+' '+esc(DB.params.devise)+'</td><td></td></tr></tfoot></table>'
+    : emptyState("users","Aucun collaborateur","Modifiez la recherche ou les filtres de la période.");
+
+  /* --- 7bis. Suivi transport (chaîne, flux, réseau) --- */
+  renderTracking(m);
+
+  /* --- 8. Derniers déplacements --- */
+  const last=dashTrips(m).sort((a,b)=> (b.date||"").localeCompare(a.date||"")).slice(0,6);
+  $("#recentWrap").innerHTML = last.length? tableHTML(last,{compact:false}) :
+    emptyState("route","Aucun déplacement sur la période","Ajustez les filtres ou enregistrez un nouveau déplacement.");
+
+  /* --- 9. Points d'attention --- */
+  const noJustif=list.filter(t=>t.justif==="NON");
+  const att=[];
+  if(openList.length) att.push({ico:"wallet",t:openList.length+" déplacement(s) en attente de règlement",s:fmtN(sum(openList))+" "+DB.params.devise+" à rembourser",go:"rapports",tone:"gold"});
+  if(noJustif.length) att.push({ico:"alert",t:noJustif.length+" justificatif(s) manquant(s)",s:"Complétez les reçus avant la clôture du mois",go:"registre",tone:"warn"});
+  const sansTrajet=list.filter(t=>!t.from||!t.to).length;
+  if(sansTrajet) att.push({ico:"route",t:sansTrajet+" trajet(s) incomplet(s)",s:"Renseignez le départ et la destination",go:"registre",tone:""});
+  if(!att.length) att.push({ico:"check",t:"Aucun point bloquant",s:"La période est propre et complète",go:"dashboard",tone:"ok"});
+  $("#attentionList").innerHTML = att.slice(0,4).map(a=>
+    '<div class="rank-item" data-go="'+a.go+'" style="cursor:pointer"><span class="ic-wrap" style="width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--surface-3);color:'+
+      (a.tone==="gold"?"#8E7318":a.tone==="warn"?"var(--warn)":a.tone==="ok"?"var(--ok)":"var(--secondary)")+'">'+ic(a.ico)+'</span>'+
+      '<span class="who"><b style="white-space:normal">'+esc(a.t)+'</b><span>'+esc(a.s)+'</span></span>'+
+      '<span style="color:var(--faint)">'+ic("chevRight")+'</span></div>').join("");
+  $$("#attentionList [data-go]").forEach(el=>el.onclick=()=>go(el.dataset.go));
+
+  /* --- 10. Contrôle & conformité --- */
+  const bt=byTransport(list);
+  const trTop=Object.keys(bt).map(k=>({k,v:bt[k].total})).sort((x,y)=>y.v-x.v)[0];
+  const topSvc=SERVICES.map(x=>({x,t:aggSvc[x.id].total})).sort((x,y)=>y.t-x.t)[0];
+  const taux = n? Math.round(((n-noJustif.length)/n)*100) : 100;
+  $("#insights").innerHTML=[
+    {icon:"clock", k:"Restant à régler", v:fmtN(sum(openList))+" "+DB.params.devise, s:openList.length+" déplacement(s) en attente", tone: openList.length? "gold":""},
+    {icon:"shield", k:"Taux de justificatifs", v:taux+" %", s:(n-noJustif.length)+" reçu(s) sur "+n, tone: taux>=90? "ok":"warn"},
+    {icon:"building", k:"Service le plus actif", v:(topSvc&&topSvc.t? topSvc.x.short : "—"), s:(topSvc&&topSvc.t? fmtN(topSvc.t)+" "+DB.params.devise : "aucune dépense"), tone:""},
+    {icon:"route", k:"Transport dominant", v:(trTop? trunc(trTop.k,20) : "—"), s:(trTop? fmtN(trTop.v)+" "+DB.params.devise : "aucune donnée"), tone:""}
+  ].map((it,i)=>'<div class="stat-tile reveal" style="--i:'+i+'"><span class="ic-wrap">'+ic(it.icon)+'</span>'+
+      '<div><div class="k">'+esc(it.k)+'</div><div class="v">'+esc(it.v)+'</div><div class="s">'+esc(it.s)+'</div></div></div>').join("");
+
+  bindChartTips();
+}
+
+/* ------------------------------ 4. ANALYSE ------------------------------ */
+let aRange=6;
+function analyseList(){
+  const m=$("#aMonthRef")? $("#aMonthRef").value : currentMonth();
+  const months=monthRange(m,aRange);
+  const s=$("#aService").value;
+  const list=DB.trips.filter(t=> months.indexOf(monthOf(t.date))>=0 && (!s || t.service===s));
+  return {months,list};
+}
+function renderAnalyse(){
+  const {months,list}=analyseList();
+  const total=sum(list), n=list.length;
+  const perMonth=months.map(m=>sum(tripsOf(m,$("#aService").value)));
+  const nonZero=perMonth.filter(v=>v>0);
+
+  $("#aKpis").innerHTML=[
+    kpiCard({i:0,label:"Dépenses de la période",icon:"wallet",value:fmtN(total),unit:DB.params.devise,
+      foot:aRange+" mois analysés",delta:null,tone:"gold"}),
+    kpiCard({i:1,label:"Moyenne mensuelle",icon:"chart",value:fmtN(nonZero.length? total/nonZero.length:0),unit:DB.params.devise,
+      foot:nonZero.length+" mois avec activité",delta:null}),
+    kpiCard({i:2,label:"Déplacements",icon:"route",value:fmtN(n),unit:"sorties",
+      foot:"soit "+fmtN(n/aRange)+" / mois",delta:null,tone:"ok"}),
+    kpiCard({i:3,label:"Kilométrage cumulé",icon:"fuel",value:fmtN(sumKm(list)),unit:"km",
+      foot:(n? Math.round(sumKm(list)/n)+" km par sortie":"—"),delta:null})
+  ].join("");
+
+  /* barres groupées par entité */
+  const series=SERVICES.filter(s=>!$("#aService").value || s.id===$("#aService").value).map(s=>({
+    name:s.short, color:s.color2, values:months.map(m=>byService(tripsOf(m))[s.id].total)
+  }));
+  $("#aMonthly").innerHTML=groupedBars(months,series);
+
+  /* transports */
+  const bt=byTransport(list);
+  const titems=Object.keys(bt).map((k,i)=>({label:k,value:bt[k].total,color:PALETTE[i%PALETTE.length]})).sort((a,b)=>b.value-a.value);
+  $("#aTransports").innerHTML = titems.length? donutBlock(titems,total,{}) : emptyState("route","Aucune donnée","Aucun déplacement sur la période.");
+
+  /* top agents */
+  const ba=byAgent(list);
+  const agents=Object.keys(ba).map(k=>({nom:k,...ba[k]})).sort((a,b)=>b.total-a.total).slice(0,6);
+  $("#aTopAgents").innerHTML = agents.length? agents.map((a,i)=>
+    '<div class="rank-item"><span class="pos">'+(i+1)+'</span><span class="avatar">'+esc(initials(a.nom))+'</span>'+
+    '<span class="who"><b>'+esc(a.nom)+'</b><span>'+a.n+' sortie(s) · dernier '+dateFR(a.last)+'</span></span>'+
+    '<span class="val">'+fmtN(a.total)+'</span></div>').join("") : emptyState("users","Aucun collaborateur","—");
+
+  /* rythme hebdomadaire */
+  const dow=[0,0,0,0,0,0,0];
+  list.forEach(t=>{ const [y,mm,d]=t.date.split("-").map(Number); const wd=(new Date(y,mm-1,d).getDay()+6)%7; dow[wd]+=Number(t.montant)||0; });
+  const maxDow=Math.max(1,...dow);
+  $("#aDow").innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+dow.map((v,i)=>
+    '<div class="bar-row" style="grid-template-columns:64px 1fr auto"><span class="nm">'+DOW_FR[i].slice(0,3)+'</span>'+
+    '<span class="bar-track"><i data-w="'+((v/maxDow)*100).toFixed(1)+'" style="background:linear-gradient(90deg,'+(i>4?"#C9A227":"#6B4A82")+','+hexA(i>4?"#C9A227":"#6B4A82",.5)+')"></i></span>'+
+    '<span class="vl">'+fmtN(v)+'</span></div>').join("")+'</div>';
+  animateBars($("#aDow"));
+
+  /* qualité */
+  const noJ=list.filter(t=>t.justif==="NON").length;
+  const regle=list.filter(t=>t.statut==="REGLE").length;
+  const incomplet=list.filter(t=>!t.from||!t.to).length;
+  const sansKm=list.filter(t=>!Number(t.km)).length;
+  $("#aQuality").innerHTML='<div style="display:grid;gap:12px">'+[
+    {k:"Reçus fournis", v:(n? Math.round(((n-noJ)/n)*100):100)+" %", s:noJ+" manquant(s)"},
+    {k:"Déjà remboursés", v:(n? Math.round((regle/n)*100):0)+" %", s:fmtN(sum(list.filter(t=>t.statut==="REGLE")))+" "+DB.params.devise},
+    {k:"Trajets complets", v:(n? Math.round(((n-incomplet)/n)*100):100)+" %", s:incomplet+" incomplet(s)"},
+    {k:"Distances renseignées", v:(n? Math.round(((n-sansKm)/n)*100):100)+" %", s:sansKm+" sans km"}
+  ].map(x=>'<div class="flex-between"><span class="small">'+esc(x.k)+'</span><span><b style="color:var(--primary)">'+esc(x.v)+'</b> <span class="small">· '+esc(x.s)+'</span></span></div>').join("")+'</div>';
+
+  /* tableau de synthèse */
+  const agg=byService(list);
+  const rows=SERVICES.filter(s=>!$("#aService").value || s.id===$("#aService").value).map(s=>{
+    const a=agg[s.id];
+    return '<tr><td><div style="display:flex;align-items:center;gap:10px"><span class="logo-box sm">'+
+      serviceLogo(s)+'</span><span><b>'+esc(s.name)+'</b><div class="small">'+esc(s.role)+'</div></span></div></td>'+
+      '<td>'+a.n+'</td><td class="amount">'+fmtN(a.total)+' '+esc(DB.params.devise)+'</td>'+
+      '<td>'+(total? ((a.total/total)*100).toFixed(1):"0,0")+' %</td>'+
+      '<td>'+fmtN(a.km)+' km</td>'+
+      '<td>'+(a.n? fmtN(a.total/a.n):"0")+' '+esc(DB.params.devise)+'</td></tr>';
+  }).join("");
+  $("#aStatsTable").innerHTML='<table class="tbl" style="min-width:720px"><thead><tr>'+
+    '<th class="no-sort">Entité</th><th class="no-sort">Sorties</th><th class="no-sort">Total</th><th class="no-sort">Part</th><th class="no-sort">Distance</th><th class="no-sort">Moyenne / sortie</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody><tfoot><tr class="tfoot"><td>TOTAL</td><td>'+n+'</td><td class="amount">'+fmtN(total)+' '+esc(DB.params.devise)+'</td><td>100 %</td><td>'+fmtN(sumKm(list))+' km</td><td>'+fmtN(n? total/n:0)+' '+esc(DB.params.devise)+'</td></tr></tfoot></table>';
+  bindChartTips();
+}
+
+/* ------------------------------ 5. VÉHICULES ------------------------------ */
+function renderCollabs(){
+  const q=($("#cSearch").value||"").toLowerCase(), s=$("#cService").value;
+  const rows=DB.agents.map((a,i)=>{
+    const stats=byAgent(DB.trips.filter(t=>t.agent===a.nom))[a.nom] || {n:0,total:0,last:null};
+    return {a,i,stats};
+  }).filter(r=>{
+    if(s && r.a.service!==s) return false;
+    if(q && r.a.nom.toLowerCase().indexOf(q)<0) return false;
+    return true;
+  }).sort((x,y)=>y.stats.total-x.stats.total);
+  const total=rows.reduce((s,r)=>s+r.stats.total,0);
+  $("#cTable").innerHTML = rows.length? '<table class="tbl" style="min-width:760px"><thead><tr>'+
+    '<th class="no-sort">Collaborateur</th><th class="no-sort">Service</th><th class="no-sort">Sorties</th>'+
+    '<th class="no-sort">Total engagé</th><th class="no-sort">Dernier déplacement</th><th class="no-sort">Statut</th><th class="act no-sort no-print">Actions</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+
+      '<td><div class="avatar-row"><span class="avatar">'+esc(initials(r.a.nom))+'</span>'+
+        '<span class="who"><b>'+esc(r.a.nom)+'</b><span>'+(r.stats.n)+' déplacement(s) enregistré(s)</span></span></div></td>'+
+      '<td>'+serviceTag(r.a.service)+'</td>'+
+      '<td>'+r.stats.n+'</td>'+
+      '<td class="amount strong">'+fmtN(r.stats.total)+' '+esc(DB.params.devise)+'</td>'+
+      '<td>'+(r.stats.last? dateFR(r.stats.last):"—")+'</td>'+
+      '<td>'+(r.a.actif===false? '<span class="tag" style="background:var(--surface-3);color:var(--muted)">Inactif</span>'
+        : '<span class="tag" style="background:var(--ok-bg);color:#2A8663">'+ic("check")+' Actif</span>')+'</td>'+
+      '<td class="act no-print"><button class="btn btn-ghost btn-sm" data-cedit="'+r.i+'">'+ic("edit")+'</button> '+
+        '<button class="btn btn-danger btn-sm" data-cdel="'+r.i+'">'+ic("trash")+'</button></td>'+
+    '</tr>').join("")+'</tbody><tfoot><tr class="tfoot"><td colspan="2">TOTAL — '+rows.length+' collaborateur(s)</td>'+
+    '<td>'+rows.reduce((s,r)=>s+r.stats.n,0)+'</td><td class="amount">'+fmtN(total)+' '+esc(DB.params.devise)+'</td><td colspan="3"></td></tr></tfoot></table>'
+    : emptyState("users","Aucun collaborateur","Ajoutez un collaborateur ou modifiez la recherche.");
+  $$("[data-cedit]").forEach(b=>b.onclick=()=>collabModal(Number(b.dataset.cedit)));
+  $$("[data-cdel]").forEach(b=>b.onclick=()=>{
+    const i=Number(b.dataset.cdel), a=DB.agents[i];
+    confirmDlg("Retirer ce collaborateur ?",
+      '<div class="alert warn">'+ic("alert")+'<div><b>'+esc(a.nom)+'</b> ne sera plus proposé dans la fiche de déplacement. Les déplacements déjà enregistrés sont conservés.</div></div>',
+      ()=>{ DB.agents.splice(i,1); DB.save(); renderCollabs(); refreshAll(); toast("Collaborateur retiré","La liste a été mise à jour.","ok"); },"Retirer");
+  });
+  $("#badgeCollabs").textContent=DB.agents.length;
+}
+function collabModal(index){
+  const isNew = index===undefined || index===null;
+  const a = isNew? {nom:"",service:"DIRECTION",actif:true} : DB.agents[index];
+  const bg=$("#modalBg"), box=$("#modalBox");
+  box.innerHTML='<header><div><h3>'+(isNew?"Ajouter un collaborateur":"Modifier le collaborateur")+'</h3><div class="sub">Autorisé à effectuer des déplacements</div></div><button class="x" data-close>'+ic("x")+'</button></header>'+
+  '<div class="bd">'+
+    '<div class="field"><label>Nom complet *</label><input class="input" id="cNom" value="'+esc(a.nom)+'" placeholder="Ex : M. KOFFI Jean-Marc"></div>'+
+    '<div class="field"><label>Service de rattachement</label><select class="input" id="cSvc">'+SERVICES.map(s=>'<option value="'+s.id+'"'+(s.id===a.service?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select></div>'+
+    '<div class="field"><label class="switch"><input type="checkbox" id="cActif" '+(a.actif!==false?"checked":"")+'><span class="track"></span> Collaborateur actif</label></div>'+
+  '</div>'+
+  '<footer><button class="btn btn-ghost" data-close>Annuler</button><button class="btn btn-primary" id="cSave">'+ic("check")+' Enregistrer</button></footer>';
+  bg.classList.add("on");
+  $$("[data-close]",box).forEach(b=>b.onclick=()=>bg.classList.remove("on"));
+  $("#cSave",box).onclick=()=>{
+    const nom=$("#cNom").value.trim();
+    if(!nom){ toast("Nom requis","Saisissez le nom du collaborateur.","err"); return; }
+    const data={nom, service:$("#cSvc").value, actif:$("#cActif").checked};
+    if(isNew) DB.agents.push(data); else DB.agents[index]=Object.assign({},DB.agents[index],data);
+    DB.save(); bg.classList.remove("on"); renderCollabs(); refreshAll(); renderParams(); renderNewViewRefs();
+    toast(isNew?"Collaborateur ajouté":"Collaborateur modifié", nom+" · "+svc(data.service).short,"ok");
+  };
+}
+
+/* ------------------------------ 7. RAPPORT MENSUEL ------------------------------ */
+function reportData(){
+  const m=$("#rMonth").value||currentMonth();
+  const s=$("#rService").value, ag=$("#rAgent").value.trim();
+  const list=tripsOf(m,s,ag);
+  const agg=byService(list), bt=byTransport(list);
+  return { m, list, total:sum(list), km:sumKm(list), agg, bt,
+    open:sum(list.filter(t=>t.statut==="A_REGLE")),
+    byServiceRows:SERVICES.filter(x=>!s||x.id===s).map(x=>({s:x,...agg[x.id]})),
+    byTransportRows:Object.keys(bt).map(k=>({label:k,...bt[k]})).sort((a,b)=>b.total-a.total) };
+}
+function renderReportPreview(){
+  const R=reportData();
+  const scope = $("#rService").value? esc(svc($("#rService").value).name) : "Toute l'entreprise";
+  const showDetail=$("#rDetail").checked, showLogos=$("#rLogos").checked;
+  const logoRow = SERVICES.filter(s=>s.logo).map(s=>'<div class="lg"><img src="'+LOGOS[s.logo].uri+'" alt="'+esc(s.name)+'"></div>').join('<div class="sep"></div>');
+  const html=
+  '<div class="rp-head"><h2>ÉTAT DES DÉPENSES DE DÉPLACEMENT — '+esc(monthLabel(R.m).toUpperCase())+'</h2>'+
+   '<p>'+esc(DB.params.nom)+' · '+esc(DB.params.slogan)+' · Périmètre : '+scope+'</p></div>'+
+  (showLogos? '<div class="rp-logos">'+logoRow+'<div class="sep"></div><div class="lg"><img src="'+LOGOS.track.uri+'" alt="VOOMNET Track"></div></div>' : '')+
+  '<div class="rp-body">'+
+    '<div class="rp-kpis">'+
+      '<div class="rp-kpi"><div class="k">Total du mois</div><div class="v">'+fmtN(R.total)+'</div><div class="s">'+esc(DB.params.devise)+'</div></div>'+
+      '<div class="rp-kpi"><div class="k">Déplacements</div><div class="v">'+fmtN(R.list.length)+'</div><div class="s">'+fmtN(R.km)+' km parcourus</div></div>'+
+      '<div class="rp-kpi"><div class="k">Moyenne / sortie</div><div class="v">'+fmtN(R.list.length? R.total/R.list.length:0)+'</div><div class="s">'+esc(DB.params.devise)+'</div></div>'+
+      '<div class="rp-kpi gold"><div class="k">Restant à régler</div><div class="v">'+fmtN(R.open)+'</div><div class="s">'+esc(DB.params.devise)+'</div></div>'+
+    '</div>'+
+    '<div class="rp-sect">Synthèse par service</div>'+
+    '<table class="rp"><thead><tr><th class="logo-cell">Logo</th><th>Service / Entité</th><th>Déplacements</th><th style="text-align:right">Total</th><th style="text-align:right">Part</th></tr></thead><tbody>'+
+      R.byServiceRows.map(r=>'<tr><td class="logo-cell">'+(r.s.logo? '<img src="'+LOGOS[r.s.logo].uri+'">':'<b>'+ic(r.s.icon)+'</b>')+'</td>'+
+        '<td><b>'+esc(r.s.name)+'</b><br><span class="small">'+esc(r.s.role)+'</span></td><td>'+r.n+'</td>'+
+        '<td style="text-align:right;font-weight:700">'+fmtN(r.total)+' '+esc(DB.params.devise)+'</td>'+
+        '<td style="text-align:right">'+(R.total?((r.total/R.total)*100).toFixed(1):"0,0")+' %</td></tr>').join("")+
+    '</tbody><tfoot><tr><td colspan="2">TOTAL GÉNÉRAL</td><td>'+R.list.length+'</td><td style="text-align:right">'+fmtN(R.total)+' '+esc(DB.params.devise)+'</td><td style="text-align:right">100 %</td></tr></tfoot></table>'+
+    '<div class="rp-sect">Synthèse par moyen de transport</div>'+
+    '<table class="rp"><thead><tr><th>Moyen de transport</th><th>Nombre</th><th style="text-align:right">Total</th><th style="text-align:right">Part</th></tr></thead><tbody>'+
+      (R.byTransportRows.length? R.byTransportRows.map(r=>'<tr><td>'+esc(r.label)+'</td><td>'+r.n+'</td><td style="text-align:right;font-weight:600">'+fmtN(r.total)+'</td><td style="text-align:right">'+(R.total?((r.total/R.total)*100).toFixed(1):"0,0")+' %</td></tr>').join("")
+        : '<tr><td colspan="4" style="text-align:center;color:var(--muted)">Aucun déplacement sur la période</td></tr>')+
+    '</tbody></table>'+
+    (showDetail? ('<div class="rp-sect">Détail des déplacements ('+R.list.length+')</div>'+
+      (R.list.length? '<table class="rp"><thead><tr><th>Date</th><th>Service</th><th>Personne</th><th>Motif</th><th>Trajet</th><th>Transport</th><th style="text-align:right">Montant</th></tr></thead><tbody>'+
+       R.list.map(t=>'<tr><td style="white-space:nowrap">'+dateFR(t.date)+'</td><td>'+esc(svc(t.service).short)+'</td><td>'+esc(t.agent||"—")+'</td><td>'+esc(t.motif)+'</td><td>'+esc((t.from||"—")+" → "+(t.to||"—"))+(Number(t.km)? ' <span class="small">· '+fmtN(t.km)+' km</span>':'')+'</td><td>'+esc(t.transport)+'</td><td style="text-align:right;font-weight:700">'+fmtN(t.montant)+'</td></tr>').join("")+
+       '</tbody><tfoot><tr><td colspan="6">TOTAL</td><td style="text-align:right">'+fmtN(R.total)+' '+esc(DB.params.devise)+'</td></tr></tfoot></table>'
+       : '<div class="alert warn">'+ic("info")+'<div>Aucun déplacement pour ce mois.</div></div>')) : '')+
+    ($("#rSign").checked? '<div class="rp-sect">Visas</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px">'+
+      ["Établi par (Service concerné)","Vérifié par (Comptabilité)","Approuvé par (Direction Générale)"].map(x=>
+      '<div style="border:1px dashed var(--line-2);border-radius:12px;padding:12px;height:92px"><div class="small" style="font-weight:700;color:var(--primary)">'+x+'</div><div style="margin-top:34px;border-top:1px solid var(--line-2)"></div></div>').join("")+
+      '</div>' : '')+
+    '<div class="small" style="margin-top:20px;text-align:center">Document généré le '+dateFR(todayISO())+' par VOOMNET Track · Dépenses de déplacement</div>'+
+  '</div>';
+  $("#reportPaper").innerHTML=html;
+}
+
+/* ================= 7 bis. COMPTES & SÉCURITÉ (Paramètres) ================= */
+function renderAccounts(){
+  const box=$("#accountCards"); if(!box) return;
+  box.innerHTML = DB.accounts.map((a,i)=>
+    '<div class="account-item" data-acc="'+i+'">'+
+      '<div class="account-head">'+
+        '<span class="ac-ic">'+ic(a.admin? "shieldCheck":"userCog")+'</span>'+
+        '<span class="ac-who"><b>'+esc(a.label)+'</b><span>'+esc(a.role)+' · '+(a.admin? "accès complet":"pilotage RH")+'</span></span>'+
+        (a.id===sessionAccountId()? '<span class="st-pill ok">'+ic("check")+'Connecté</span>':'')+
+      '</div>'+
+      '<div class="grid g-2" style="gap:0 16px">'+
+        '<div class="field"><label for="acLogin'+i+'">Identifiant</label>'+
+          '<input class="input" id="acLogin'+i+'" value="'+esc(a.login)+'" autocomplete="off" spellcheck="false"></div>'+
+        '<div class="field"><label for="acPwd'+i+'">Nouveau mot de passe</label>'+
+          '<input class="input" id="acPwd'+i+'" type="password" placeholder="Laisser vide pour conserver" autocomplete="new-password"></div>'+
+      '</div>'+
+      '<div class="field"><label for="acLabel'+i+'">Nom du compte</label>'+
+        '<input class="input" id="acLabel'+i+'" value="'+esc(a.label)+'"></div>'+
+      '<div class="btn-row"><button class="btn btn-primary btn-sm" data-accsave="'+i+'">'+ic("check")+' Enregistrer</button>'+
+        '<button class="btn btn-ghost btn-sm" data-accreset="'+i+'">'+ic("refresh")+' Rétablir l\'identifiant par défaut</button></div>'+
+    '</div>').join("");
+  $$("[data-accsave]").forEach(b=>b.onclick=()=>saveAccount(Number(b.dataset.accsave)));
+  $$("[data-accreset]").forEach(b=>b.onclick=()=>{
+    const i=Number(b.dataset.accreset), def=ACCOUNT_DEFAULTS[i];
+    DB.accounts[i].login=def.login; DB.accounts[i].hash=def.hash; DB.save();
+    renderAccounts();
+    toast("Identifiant rétabli", def.login+" · le mot de passe d'origine est de nouveau actif.","ok");
+  });
+}
+function saveAccount(i){
+  const a=DB.accounts[i];
+  const login=$("#acLogin"+i).value.trim(), pwd=$("#acPwd"+i).value, label=$("#acLabel"+i).value.trim();
+  if(login.length<3){ toast("Identifiant trop court","Choisissez au moins 3 caractères.","err"); return; }
+  if(DB.accounts.some((x,j)=> j!==i && x.login.toLowerCase()===login.toLowerCase())){
+    toast("Identifiant déjà utilisé","Chaque compte doit avoir un identifiant unique.","err"); return; }
+  if(pwd && pwd.length<6){ toast("Mot de passe trop court","Prévoyez au moins 6 caractères.","err"); return; }
+  a.login=login;
+  a.label=label||a.label;
+  if(pwd) a.hash=hashPwd(pwd);
+  DB.save();
+  if(a.id===sessionAccountId()){ DB.user.name=a.label; DB.user.role=a.role; DB.save(); renderUser(); }
+  renderAccounts();
+  toast("Compte mis à jour", a.login+" · connexion "+(pwd? "et mot de passe modifiés":"inchangée"),"ok");
+}
+
+/* ------------------------------ 8. INITIALISATION ------------------------------ */
+function init(){
+  DB.load();
+  hydrateIcons(document);
+  hydrateBrand(document);
+  initSplash(()=>{ if(!hasSession()) showLogin(); });
+
+  /* comptes & sécurité */
+  renderAccounts();
+
+  /* navigation */
+  $$(".nav-item").forEach(n=>n.onclick=()=>go(n.dataset.view));
+  $$("[data-goto]").forEach(b=>b.onclick=()=>go(b.dataset.goto));
+  $("#burger").onclick=()=>{ $("#sidebar").classList.add("open"); $("#scrim").classList.add("on"); };
+  $("#scrim").onclick=()=>{ $("#sidebar").classList.remove("open"); $("#scrim").classList.remove("on"); };
+  bindPops();
+  /* ---- écran d'accès : identifiant + mot de passe ---- */
+  const tryLogin=()=>{
+    const ok = doLogin($("#loginIdent").value, $("#loginPwd").value);
+    if(ok){ const p=$("#loginPwd"); if(p) p.value=""; }
+  };
+  const goNow=$("#btnLogin"); if(goNow) goNow.onclick=tryLogin;
+  ["loginIdent","loginPwd"].forEach(id=>{
+    const el=$("#"+id); if(!el) return;
+    el.addEventListener("keydown",e=>{ if(e.key==="Enter") tryLogin(); });
+    el.addEventListener("input",()=>{
+      el.classList.remove("err");
+      const b=$("#err-login"); if(b) b.classList.remove("on");
+    });
+  });
+  const eye=$("#btnEye");
+  if(eye) eye.onclick=()=>{
+    const p=$("#loginPwd"); if(!p) return;
+    const show = p.type==="password";
+    p.type = show? "text":"password";
+    eye.innerHTML = ic(show? "eyeOff":"eye");
+    p.focus();
+  };
+
+  /* ---- déconnexion : 3 voies + gestionnaire délégué (menu compris) ---- */
+  const bindLogout=sel=>{ const b=$(sel); if(b) b.onclick=e=>{ e.preventDefault(); logout(); }; };
+  bindLogout("#btnLogoutTop"); bindLogout("#btnLogoutSide");
+  bindLogoutDelegation();
+
+  /* Sécurité (v3.8) : aucun accès anonyme — si un ancien cache réinjectait le bouton
+     « Mode consultation », il est retiré immédiatement. */
+  const legacySkip = $("#btnLoginSkip"); if(legacySkip) legacySkip.remove();
+  const legacySep = document.querySelector(".login-actions .login-sep"); if(legacySep) legacySep.remove();
+  const ln=$("#loginName"); if(ln) ln.addEventListener("keydown",e=>{ if(e.key==="Enter") $("#btnLogin").click(); });
+
+  /* formulaire */
+  selService=null; renderServicePick();
+  $("#fDate").value=todayISO();
+  $("#formDep").addEventListener("submit",submitForm);
+  $("#btnResetForm").onclick=()=>{ resetForm(); toast("Fiche vidée","Vous pouvez saisir un nouveau déplacement.","info"); };
+
+  /* dashboard RH : filtres globaux appliqués à tout le tableau de bord */
+  $("#dashMonth").value=currentMonth();
+  $("#dashMonth").onchange=()=>{ refreshAll(); };
+
+  const bindGlobal=(id,key)=>{
+    const el=$("#"+id); if(!el) return;
+    el.addEventListener("change",()=>{ dashFilters[key]=el.value; renderDashboard(); });
+  };
+  bindGlobal("gService","service"); bindGlobal("gAgent","agent"); bindGlobal("gType","type");
+  const rF=$("#btnResetFilters");
+  if(rF) rF.onclick=()=>{
+    dashFilters={service:"",agent:"",type:""};
+    ["gService","gAgent","gType"].forEach(id=>{ const e=$("#"+id); if(e) e.value=""; });
+    renderDashboard(); toast("Filtres réinitialisés","Toute l'organisation est affichée.","info");
+  };
+  const ca=$("#caSearch"); if(ca) ca.addEventListener("input",()=>{
+    clearTimeout(window.__caT); window.__caT=setTimeout(renderDashboard,180);
+  });
+  $$("#evoRange button").forEach(b=>b.onclick=()=>{
+    $$("#evoRange button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+    evoRange=Number(b.dataset.range); renderDashboard();
+  });
+  $("#qaPdf").onclick=()=>{ $("#rMonth").value=$("#dashMonth").value||currentMonth(); go("rapports"); setTimeout(()=>buildPDF(true),350); };
+
+  /* registre */
+  $("#fService").innerHTML='<option value="">Tous les services</option>'+SERVICES.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  $("#fTransport").innerHTML='<option value="">Tous les transports</option>'+DB.transports.map(t=>'<option>'+esc(t)+'</option>').join("");
+  $("#fMonth").value=currentMonth();
+  ["fSearch","fMonth","fService","fTransport","fStatut2","fJustif2"].forEach(id=>{
+    const el=$("#"+id); el.addEventListener("input",()=>{ page=1; renderRegistre(); });
+    el.addEventListener("change",()=>{ page=1; renderRegistre(); });
+  });
+  $("#fPerPage").onchange=()=>{ page=1; renderRegistre(); };
+  $("#btnClearFilters").onclick=()=>{
+    ["fSearch","fService","fTransport","fStatut2","fJustif2"].forEach(id=>$("#"+id).value="");
+    $("#fMonth").value=currentMonth(); page=1; renderRegistre();
+  };
+  $("#btnExportCsv").onclick=()=>exportCsv(filteredTrips(),"VOOMNET_Track_sorties_"+($("#fMonth").value||"tout")+".csv");
+  $("#btnPrintList").onclick=()=>{ toast("Impression","Utilisez Ctrl+P puis « Enregistrer au format PDF » pour la liste affichée.","info"); setTimeout(()=>{try{window.print();}catch(e){}},400); };
+  $("#btnGoRapport").onclick=()=>{ $("#rMonth").value=$("#fMonth").value||currentMonth(); go("rapports"); };
+
+  /* analyse */
+  $("#aService").innerHTML='<option value="">Tous les services</option>'+SERVICES.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  $$("#aRange button").forEach(b=>b.onclick=()=>{
+    $$("#aRange button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+    aRange=Number(b.dataset.range); renderAnalyse();
+  });
+  $("#aService").addEventListener("change",renderAnalyse);
+  $("#aExportCsv").onclick=()=>exportCsv(analyseList().list,"VOOMNET_Track_analyse_"+aRange+"mois.csv");
+
+  /* collaborateurs */
+  $("#btnAddCollab").onclick=()=>collabModal(null);
+  $("#cSearch").addEventListener("input",renderCollabs);
+  $("#cService").innerHTML='<option value="">Tous les services</option>'+SERVICES.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  $("#cService").addEventListener("change",renderCollabs);
+
+  /* rapports */
+  $("#rMonth").value=currentMonth();
+  $("#rService").innerHTML='<option value="">Toute l\'entreprise (tous services)</option>'+SERVICES.map(s=>'<option value="'+s.id+'">'+esc(s.name)+'</option>').join("");
+  ["rMonth","rService","rAgent","rDetail","rSign","rLogos"].forEach(id=>{
+    const el=$("#"+id); el.addEventListener("input",renderReportPreview); el.addEventListener("change",renderReportPreview);
+  });
+  $("#btnPdf").onclick=()=>buildPDF(true);
+  $("#btnPdfOpen").onclick=()=>buildPDF(false);
+
+  /* « Choisir l'emplacement… » : enregistrement PDF au dossier choisi (Bureau, clé USB) */
+  const bsa=$("#btnPdfSaveAs");
+  if(bsa) bsa.onclick=()=>buildPDF("picker");
+  $("#btnPrintReport").onclick=()=>{ toast("Impression","Ctrl+P → « Enregistrer au format PDF » pour l'aperçu affiché.","info"); setTimeout(()=>{try{window.print();}catch(e){}},400); };
+  $("#btnCsvMonth").onclick=()=>exportCsv(reportData().list,"VOOMNET_Track_rapport_"+$("#rMonth").value+".csv");
+
+  /* paramètres */
+  $("#btnSaveParams").onclick=()=>{
+    DB.params={ nom:$("#pNom").value, slogan:$("#pSlogan").value, ville:$("#pVille").value, tel:$("#pTel").value, devise:$("#pDevise").value };
+    DB.save(); refreshAll(); toast("Paramètres enregistrés","L'en-tête des rapports a été mis à jour.","ok");
+  };
+  $("#btnAddAgent").onclick=()=>{
+    const n=$("#pAgentName").value.trim(); if(!n) return toast("Nom requis","Saisissez le nom du collaborateur.","err");
+    DB.agents.push({nom:n,service:$("#pAgentSvc").value,actif:true}); DB.save();
+    $("#pAgentName").value=""; renderParams(); renderNewViewRefs(); refreshAll();
+    toast("Collaborateur ajouté","Il est désormais proposé dans la fiche de déplacement.","ok");
+  };
+  $("#btnAddTrans").onclick=()=>{
+    const n=$("#pTransName").value.trim(); if(!n) return toast("Libellé requis","Saisissez un moyen de transport.","err");
+    DB.transports.push(n); DB.save(); $("#pTransName").value=""; renderParams(); renderNewViewRefs();
+    $("#fTransport").innerHTML='<option value="">Tous les transports</option>'+DB.transports.map(t=>'<option>'+esc(t)+'</option>').join("");
+    toast("Transport ajouté","Disponible dans la fiche et les filtres.","ok");
+  };
+  $("#btnBackup").onclick=doBackup;
+  $("#fileRestore").onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=()=>{ try{
+        const d=JSON.parse(rd.result);
+        if(!d.trips) throw new Error("format");
+        DB.trips=d.trips||[]; DB.agents=d.agents||DB.agents; DB.transports=d.transports||DB.transports;
+        DB.vehicles=d.vehicles||DB.vehicles; DB.params=Object.assign(DB.params,d.params||{}); DB.user=Object.assign(DB.user,d.user||{});
+        DB.save(); renderParams(); refreshAll(); toast("Sauvegarde restaurée","Toutes les données ont été rechargées.","ok");
+      }catch(err){ toast("Fichier illisible","Le fichier JSON n'est pas une sauvegarde VOOMNET Track valide.","err"); } };
+    rd.readAsText(f); e.target.value="";
+  };
+  $("#btnWipe").onclick=()=>{ if(!isAdmin()){ toast("Action réservée","Seul le compte Administrateur peut effacer les données.","err"); return; } confirmDlg("Tout effacer ?",
+    '<div class="alert danger">'+ic("alert")+'<div>Cette action supprime <b>définitivement</b> les '+DB.trips.length+' déplacement(s) enregistrés'+
+    (Store.mode==="local"? " du stockage de ce navigateur":" de la session en cours")+'. Pensez à télécharger une sauvegarde JSON avant.</div></div>',
+    ()=>{ DB.trips=[]; DB.meta.seeded=true; DB.save(); refreshAll(); renderParams(); renderAccounts(); toast("Données effacées","La plateforme repart de zéro.","ok"); },"Tout effacer");
+  };
+
+  refreshAll();
+  go("dashboard");
+  if(Store.mode!=="local") setTimeout(()=>toast("Mode aperçu restreint",
+    "Le stockage permanent est bloqué ici. Ouvrez index.html dans Chrome/Edge pour enregistrer durablement vos données.","info"), 2600);
+}
+document.addEventListener("DOMContentLoaded",init);
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8">
+<style>
+  body{margin:0;background:#F8F7FA;font-family:system-ui;padding:26px}
+  .box{background:#fff;border:1px solid #EBE6F0;border-radius:20px;padding:16px}
+  .lbl{font:600 11px/1 system-ui;letter-spacing:.14em;text-transform:uppercase;color:#8A7F97;margin-bottom:10px}
+  svg{display:block;width:100%;height:auto}
+</style>
+<div class="box"><div class="lbl">Véhicule v2</div>
+<svg viewBox="0 0 560 250" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <pattern id="bp" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M20 0H0V20" fill="none" stroke="#EFE8F4" stroke-width="1"/>
+    </pattern>
+    <clipPath id="under"><rect x="0" y="166.5" width="560" height="90"/></clipPath>
+    <linearGradient id="wash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F3FA" stop-opacity=".95"/><stop offset="1" stop-color="#F7F3FA" stop-opacity=".25"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="8" width="560" height="204" rx="16" fill="url(#bp)" opacity=".9"/>
+  <rect x="0" y="8" width="560" height="204" rx="16" fill="url(#wash)"/>
+  <ellipse cx="264" cy="194" rx="176" ry="9" fill="#4A2A63" opacity=".05"/>
+
+  <!-- ROUES : seule la partie sous la caisse est visible (passage de roue) -->
+  <g clip-path="url(#under)">
+    <g fill="#fff" stroke="#4A2A63" stroke-width="2.6">
+      <circle cx="176" cy="170" r="22"/><circle cx="396" cy="170" r="22"/>
+    </g>
+    <g fill="none" stroke="#6B4A82" stroke-width="1.5">
+      <circle cx="176" cy="170" r="9.5"/><circle cx="396" cy="170" r="9.5"/>
+      <path d="M176 181.5v-2.5M167.5 170H165M186.5 170h-2.5"/>
+      <path d="M396 181.5v-2.5M387.5 170H385M406.5 170h-2.5"/>
+    </g>
+    <g fill="#C9A227"><circle cx="176" cy="170" r="3.4"/><circle cx="396" cy="170" r="3.4"/></g>
+  </g>
+
+  <!-- CARROSSERIE (fond blanc : les roues passent dessous) -->
+  <g>
+    <path d="M80 168V118a14 14 0 0 1 14-14h206l56 30h88a14 14 0 0 1 14 14v20z"
+          fill="#fff" stroke="#4A2A63" stroke-width="2.4" stroke-linejoin="round"/>
+    <!-- bas de caisse + passages de roues -->
+    <path d="M80 168h69M149 168a27 27 0 0 1 54 0M203 168h166M369 168a27 27 0 0 1 54 0M423 168h35"
+          fill="none" stroke="#4A2A63" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+
+  <!-- DÉTAILS -->
+  <g fill="none" stroke="#4A2A63" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- rétroviseur -->
+    <path d="M304 114l4-8"/><rect x="308" y="95" width="15" height="10" rx="4" fill="#fff"/>
+    <path d="M240 122v46" stroke="#9C87B2" stroke-width="1.5"/> <!-- portière coulissante -->
+    <path d="M252 136h22" stroke-width="2.2"/>                <!-- poignée -->
+  </g>
+  <!-- vitrage -->
+  <path d="M306 118h34l15 24h-49z" fill="#EFE8F4" fill-opacity=".7" stroke="#4A2A63" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M312 124h24l7 12h-31z" fill="#fff" fill-opacity=".55" stroke="none"/>
+  <!-- phare, feux -->
+  <path d="M430 144h12a6 6 0 0 1 6 6v6h-18z" fill="#FBF7E7" stroke="#4A2A63" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M80 128h5v15h-5z" fill="#F7E7E5" stroke="#B4645F" stroke-width="1.3"/>
+
+  <!-- LIVRÉE : filet doré + marque -->
+  <path d="M96 141h132" fill="none" stroke="#C9A227" stroke-width="2.4" stroke-linecap="round"/>
+  <text x="96" y="131" font-family="system-ui" font-size="10.5" font-weight="700" letter-spacing="2.8" fill="#4A2A63" fill-opacity=".58">VOOMNET</text>
+
+  <!-- TRAJET : ligne pointillée animée + départ + destination -->
+  <path id="rt" d="M44 216h432" fill="none" stroke="#DFD2E9" stroke-width="2.2" stroke-dasharray="2 9" stroke-linecap="round"/>
+  <circle cx="44" cy="216" r="5" fill="#fff" stroke="#6B4A82" stroke-width="2.4"/>
+  <g transform="translate(486 176)">
+    <path d="M12 40c0-4 12-16 12-26A12 12 0 1 0 0 14c0 10 12 22 12 26z" fill="#fff" stroke="#C9A227" stroke-width="2.4" stroke-linejoin="round"/>
+    <circle cx="12" cy="14" r="4.6" fill="#C9A227"/>
+  </g>
+
+  <!-- mouvement -->
+  <g stroke="#C9A227" stroke-width="2.4" stroke-linecap="round" opacity=".8">
+    <path d="M34 132h20"/><path d="M26 148h12"/>
+  </g>
+</svg>
+</div>

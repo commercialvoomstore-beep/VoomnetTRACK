@@ -1,0 +1,69 @@
+/* ============================ SPLASH SCREEN ============================
+   Court (≈2,0 s), lumineux, sobre. Uniquement transform/opacity → 60 FPS.
+   Séquence : halo → logo (fade + montée + scale 96→100%) → signature →
+   filet doré → jauge de chargement → fondu vers l'application.
+   ======================================================================= */
+#splash{
+  position:fixed;inset:0;z-index:1000;display:grid;place-items:center;overflow:hidden;
+  background:
+    radial-gradient(1020px 560px at 50% -10%, #F3ECFB 0%, rgba(243,236,251,0) 62%),
+    radial-gradient(720px 470px at 94% 108%, #FCF6E4 0%, rgba(252,246,228,0) 58%),
+    #FCFCFE;
+  transition:opacity .5s var(--ease), visibility .5s;
+  will-change:opacity;contain:paint;
+}
+#splash.done{opacity:0;visibility:hidden;pointer-events:none}
+.splash-halo{
+  position:absolute;width:min(760px,90vw);aspect-ratio:1;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle, rgba(111,45,189,.10) 0%, rgba(111,45,189,.045) 38%, rgba(111,45,189,0) 66%);
+  opacity:0;transform:scale(.92);animation:splashHalo 1.15s var(--ease-out) .04s forwards;will-change:transform,opacity;
+}
+.splash-inner{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:17px;
+  padding:24px;text-align:center;transition:transform .5s var(--ease), opacity .38s var(--ease);
+}
+#splash.done .splash-inner{transform:scale(1.014);opacity:.55}
+.splash-logo{
+  width:min(320px,62vw);opacity:0;transform:translateY(12px) scale(.96);
+  animation:splashLogo .95s var(--ease-out) .1s forwards;will-change:transform,opacity;
+}
+.splash-logo img{width:100%;height:auto;display:block}
+.splash-sub{
+  font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--faint);
+  opacity:0;transform:translateY(6px);animation:splashFade .5s var(--ease-out) .5s forwards;will-change:transform,opacity;
+}
+.splash-rule{
+  width:46px;height:1px;opacity:0;
+  background:linear-gradient(90deg, rgba(215,178,56,0), #D7B238 45%, rgba(215,178,56,0));
+  animation:splashFade .55s var(--ease-out) .62s forwards;
+}
+.splash-bar{
+  width:132px;height:2px;border-radius:99px;background:rgba(50,16,79,.09);overflow:hidden;
+  opacity:0;animation:splashFade .4s var(--ease-out) .52s forwards;
+}
+.splash-bar i{
+  display:block;width:100%;height:100%;border-radius:99px;transform:scaleX(0);transform-origin:left center;
+  background:linear-gradient(90deg,#32104F,#6F2DBD 58%,#D7B238);
+  animation:splashBar 1.42s var(--ease) .5s forwards;will-change:transform;
+}
+.splash-version{
+  position:absolute;left:0;right:0;bottom:26px;font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  color:#B7B2BE;opacity:0;animation:splashFade .6s var(--ease-out) .9s forwards;
+}
+@keyframes splashHalo{to{opacity:1;transform:none}}
+@keyframes splashLogo{to{opacity:1;transform:none}}
+@keyframes splashFade{to{opacity:1;transform:none}}
+@keyframes splashBar{0%{transform:scaleX(0)}72%{transform:scaleX(.8)}100%{transform:scaleX(1)}}
+@media(max-width:640px){
+  .splash-inner{gap:14px}
+  .splash-logo{width:min(262px,74vw)}
+  .splash-sub{font-size:10px;letter-spacing:.22em}
+  .splash-version{bottom:18px;font-size:10px}
+}
+@media (prefers-reduced-motion:reduce){
+  .splash-halo,.splash-logo,.splash-sub,.splash-rule,.splash-bar,.splash-version{
+    animation-duration:.01ms;animation-delay:0s;opacity:1;transform:none;
+  }
+  .splash-bar i{animation-duration:.01ms;transform:scaleX(1)}
+  #splash.done .splash-inner{transform:none;opacity:1}
+}

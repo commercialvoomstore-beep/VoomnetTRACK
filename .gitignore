@@ -1,0 +1,19 @@
+# --- Système et caches ---
+.cache/
+__pycache__/
+*.pyc
+.sudo_as_admin_successful
+
+# --- Artefacts de contrôle régénérables (captures, rapports, exports) ---
+test/diag/
+test/shots*/
+test/splash/
+test/*.pdf
+test/*.csv
+
+# --- Fichiers temporaires ---
+*.tmp
+*~
+
+# --- Paquet git de transfert ---
+*.bundle
