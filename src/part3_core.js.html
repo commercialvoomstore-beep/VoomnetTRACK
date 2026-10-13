@@ -800,8 +800,8 @@ function renderParams(){
     " cumulés · <b>"+fmtN(sumKm(s))+"</b> km · "+DB.agents.length+" collaborateur(s) · "+SERVICES.length+" service(s)"+
     (s.length? " · du "+dateFR(s.map(t=>t.date).sort()[0])+" au "+dateFR(s.map(t=>t.date).sort().slice(-1)[0]) : "");
   $("#storeInfo").innerHTML = Store.mode==="local"
-    ? "<b>Stockage local actif</b> — vos données sont conservées automatiquement dans ce navigateur, même après fermeture."
-    : "<b>Stockage local indisponible</b> (aperçu restreint) — les données restent en mémoire pour cette session. Ouvrez <b>index.html</b> dans un navigateur pour un enregistrement permanent, ou utilisez la sauvegarde JSON.";
+    ? "<b>Données centralisées</b> — déplacements, collaborateurs et véhicules sont enregistrés dans la base de l'entreprise : ils sont visibles depuis tout appareil, par tous les comptes autorisés."
+    : "<b>Base de données non initialisée</b> — la plateforme se connectera dès que les tables seront créées (voir la documentation).";
 }
 
 /* ---------------------- 16. AUCUNE DONNÉE DE DÉMONSTRATION ----------------------
@@ -823,7 +823,7 @@ function refreshAll(){
   const pill=$("#storePill");
   pill.classList.toggle("warn", Store.mode!=="local");
   $("#storePillTxt").textContent = Store.mode==="local"
-    ? "Stockage local actif · "+DB.trips.length+" lignes"
+    ? "Base synchronisée · "+DB.trips.length+" ligne(s)"
     : "Session seule · pensez au JSON";
   renderUser();
   renderNotifications();
