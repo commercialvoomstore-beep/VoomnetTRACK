@@ -11,6 +11,9 @@ const {
   essaisBloques, noterEchec, reinitialiserEssais, MAX_ESSAIS
 } = require("./_lib/auth");
 const { ok, erreur, lireCorps, texte, nombre, booleen, dateISO } = require("./_lib/http");
+const SCHEMA_SQL = require("../db/schema");
+const { COLLABS, VEHICULES } = require("../db/seed-data");
+const crypto = require("crypto");
 
 /* ------------------------------- Helpers --------------------------------- */
 function cheminEtQuery(req) {
@@ -59,11 +62,84 @@ async function route(req, res) {
   /* --- Santé (publique, sans données sensibles) --- */
   if (chemin === "/health" && methode === "GET") {
     try {
-      const { rows } = await query("SELECT now() AS maintenant, current_database() AS base");
-      return ok(res, { ok: true, base: "connectee", base_nom: rows[0].base, heure: rows[0].maintenant, version: "3.11.0" });
+      const { rows } = await query(
+        "SELECT now() AS maintenant, current_database() AS base, (to_regclass('public.comptes') IS NOT NULL) AS pret");
+      return ok(res, { ok: true, base: "connectee", base_nom: rows[0].base, heure: rows[0].maintenant,
+        tables_pretes: !!rows[0].pret, version: "3.11.0" });
     } catch (e) {
       return erreur(res, 503, "Base de données injoignable : " + (e.message || e.code), "BASE_INJOIGNABLE");
     }
+  }
+
+  /* --- Initialisation de la base (protégée par une clé d'installation) ---
+     Sert une seule fois, à la mise en service du projet : crée les tables
+     (idempotent) et les données de départ. Aucune donnée n'est jamais supprimée.
+     Nécessite la variable d'environnement MIGRATION_KEY (16 caractères minimum). */
+  if (chemin === "/init") {
+    const cle = String(process.env.MIGRATION_KEY || "");
+    if (cle.length < 16) return erreur(res, 404, "Route inconnue.", "ROUTE_INCONNUE");
+    if (methode !== "POST") return erreur(res, 405, "Méthode non autorisée : utilisez POST.", "METHODE");
+    const fournie = String(req.headers["x-migration-key"] || "");
+    const a = Buffer.from(cle), b = Buffer.from(fournie);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      await journaliser(null, "init_refusee", null, { raison: "clé invalide" }, req);
+      return erreur(res, 403, "Clé d'installation invalide.", "CLE_INVALIDE");
+    }
+
+    const resume = { schema: false, comptes: [], collaborateurs: 0, vehicules: 0, generateurs: [] };
+    /* 1. schéma (CREATE TABLE IF NOT EXISTS + référentiels) */
+    await query(SCHEMA_SQL);
+    resume.schema = true;
+
+    /* 2. données de départ */
+    for (const c of COLLABS) {
+      await query(
+        `INSERT INTO collaborateurs (id, nom, service_id, actif, email, telephone)
+         VALUES ($1,$2,$3,true,$4,$5)
+         ON CONFLICT (id) DO UPDATE SET nom = EXCLUDED.nom, service_id = EXCLUDED.service_id,
+           email = EXCLUDED.email, telephone = EXCLUDED.telephone, maj_le = now()`,
+        [c.id, c.nom, c.service, c.email || "", c.telephone || ""]);
+      resume.collaborateurs++;
+    }
+    for (const v of VEHICULES) {
+      await query(
+        `INSERT INTO vehicules (id, plaque, marque, modele, type, annee, km, service_id, etat, entretien, note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         ON CONFLICT (id) DO UPDATE SET plaque = EXCLUDED.plaque, marque = EXCLUDED.marque,
+           modele = EXCLUDED.modele, type = EXCLUDED.type, annee = EXCLUDED.annee, km = EXCLUDED.km,
+           service_id = EXCLUDED.service_id, etat = EXCLUDED.etat, entretien = EXCLUDED.entretien,
+           note = EXCLUDED.note, maj_le = now()`,
+        [v.id, v.plate, v.marque, v.modele, v.type, v.annee, v.km, v.service, v.state, v.entretien, v.note || ""]);
+      resume.vehicules++;
+    }
+
+    /* 3. comptes : créés seulement s'ils n'existent pas ; un mot de passe déjà
+          défini n'est JAMAIS écrasé. Sans mot de passe fourni, un mot de passe
+          temporaire aléatoire est généré et renvoyé une seule fois. */
+    const comptes = [
+      { id: "rh",    login: "rh",    nom: "Service Ressources Humaines", role: "Responsable RH",    admin: false, pwd: process.env.SEED_RH_PASSWORD || "" },
+      { id: "admin", login: "admin", nom: "Administrateur VOOMNET",      role: "Administrateur RH", admin: true,  pwd: process.env.SEED_ADMIN_PASSWORD || "" }
+    ];
+    for (const c of comptes) {
+      const dejaLa = await query(`SELECT id FROM comptes WHERE id = $1`, [c.id]);
+      if (dejaLa.rowCount) { resume.comptes.push({ id: c.id, etat: "déjà présent (inchangé)" }); continue; }
+      let pwd = c.pwd, temporaire = false;
+      if (!pwd) {
+        pwd = crypto.randomBytes(9).toString("base64url");
+        temporaire = true;
+        resume.generateurs.push(c.login);
+      }
+      await query(
+        `INSERT INTO comptes (id, identifiant, nom, role, admin, actif, mot_de_passe_hash, mot_de_passe_defaut_hash)
+         VALUES ($1,$2,$3,$4,$5,true,$6,$6)`,
+        [c.id, c.login, c.nom, c.role, c.admin, hacherMotDePasse(pwd)]);
+      resume.comptes.push({ id: c.id, login: c.login, etat: "créé", motDePasseTemporaire: temporaire ? pwd : null });
+    }
+
+    const t = await query(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='public'`);
+    resume.tables = t.rows[0].n;
+    await journaliser(null, "init_base", null, { tables: resume.tables }, req);
+    return ok(res, resume);
   }
 
   /* --- Connexion --- */
@@ -374,10 +450,14 @@ module.exports = async (req, res) => {
   try {
     await route(req, res);
   } catch (e) {
-    const code = e && e.code === "NO_DATABASE_URL" ? 500 : 500;
     if (process.env.NODE_ENV !== "production") console.error("[api]", e);
     if (!res.headersSent) {
-      erreur(res, code, "Erreur serveur : " + (e.message || "inconnue"),
+      /* base non initialisée : message explicite plutôt qu'une erreur technique */
+      if (e && (e.code === "42P01" || /relation .* does not exist/.test(e.message || ""))) {
+        return erreur(res, 503, "La base n'est pas encore initialisée : la création des tables est requise.",
+          "BASE_NON_INITIALISEE");
+      }
+      erreur(res, 500, "Erreur serveur : " + (e.message || "inconnue"),
         e && e.code ? e.code : "ERREUR_SERVEUR");
     }
   }

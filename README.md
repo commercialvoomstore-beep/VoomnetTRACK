@@ -30,7 +30,32 @@ Navigateur  ──►  index.html (interface, une seule page, sans dépendance e
 
 ## Mise en service
 
-### 1. Base de données (Neon)
+### 1. Base de données (Neon) — deux méthodes
+
+**A. Initialisation depuis l'API (aucune chaîne de connexion à manipuler)**
+
+Renseignez dans Vercel → *Settings → Environment Variables* :
+
+| Variable | Rôle |
+|---|---|
+| `MIGRATION_KEY` | clé d'installation (16 caractères minimum) ; **à supprimer après la mise en service** |
+| `SEED_RH_PASSWORD` | mot de passe initial du compte RH (facultatif) |
+| `SEED_ADMIN_PASSWORD` | mot de passe initial du compte administrateur (facultatif) |
+
+Puis, après redéploiement :
+
+```bash
+curl -X POST https://<votre-domaine>/api/init -H "x-migration-key: <votre clé>"
+```
+
+La route est **invisible (404) tant que `MIGRATION_KEY` n'est pas définie**, refuse toute clé
+erronée (403), ne supprime jamais rien, est rejouable sans risque et renvoie un compte rendu
+(tables créées, comptes, référentiels). Sans mot de passe fourni, un **mot de passe temporaire
+aléatoire** est généré et renvoyé une seule fois.
+
+Vérification : `GET /api/health` doit alors indiquer `"tables_pretes":true`.
+
+### 1 bis. Base de données (Neon) — méthode manuelle
 
 ```bash
 export DATABASE_URL="postgres://user:motdepasse@ep-xxx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
