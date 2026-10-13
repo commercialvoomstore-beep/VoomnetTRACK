@@ -1,0 +1,18 @@
+{
+  "name": "voomnet-track",
+  "version": "3.11.0",
+  "private": true,
+  "description": "VOOMNET Track — suivi des dépenses de déplacement (application + API Postgres/Neon)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node dev-server.js",
+    "migrate": "node db/migrate.js",
+    "seed": "node db/seed.js",
+    "build": "python3 build.py"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

@@ -316,21 +316,16 @@ const Store = (()=>{
    --------------------------------------------------------------------------------------- */
 /* Les mots de passe par défaut ne figurent JAMAIS en clair dans ce fichier :
    seules des empreintes non réversibles (FNV-1a salée) sont embarquées. */
+/* v3.11 — Plus AUCUNE empreinte de mot de passe dans le navigateur : l'identité
+   est vérifiée par le serveur (scrypt + sessions en base). Cette liste ne sert
+   qu'à l'affichage des comptes tant que la base n'a pas répondu. */
 const ACCOUNT_DEFAULTS = [
-  { id:"rh",    login:"rh",    label:"Service Ressources Humaines", role:"Responsable RH",
-    admin:false, hash:"6e6b4ab8" },
-  { id:"admin", login:"admin", label:"Administrateur VOOMNET",      role:"Administrateur RH",
-    admin:true,  hash:"460c9900" }
+  { id:"rh",    login:"rh",    label:"Service Ressources Humaines", role:"Responsable RH",    admin:false },
+  { id:"admin", login:"admin", label:"Administrateur VOOMNET",      role:"Administrateur RH", admin:true  }
 ];
-/* empreinte locale (FNV-1a salée) : suffisante pour une application hors ligne */
-function hashPwd(str){
-  let h=0x811c9dc5; const txt="vt2026::"+(str||"");
-  for(let i=0;i<txt.length;i++){ h ^= txt.charCodeAt(i); h = (h*0x01000193)>>>0; }
-  return ("00000000"+h.toString(16)).slice(-8);
-}
 function defaultAccounts(){
   return ACCOUNT_DEFAULTS.map(a=>({ id:a.id, login:a.login, label:a.label, role:a.role,
-    admin:!!a.admin, hash:a.hash }));
+    admin:!!a.admin, actif:true }));
 }
 /* ACCOUNT_HINTS supprimé : aucun identifiant n'est exposé dans l'interface. */
 
@@ -367,6 +362,10 @@ const DB = {
   updateVehicle(id,patch){ const v=this.vehicles.find(x=>x.id===id); if(v){ Object.assign(v,patch); this.save(); } },
   removeVehicle(id){ this.vehicles=this.vehicles.filter(v=>v.id!==id); this.save(); }
 };
+/* v3.11 — la base parle de « vehicules » et « comptes » : on garde un seul état. */
+Object.defineProperty(DB, "vehicules", { get(){ return this.vehicles; }, set(v){ this.vehicles = v; }, configurable: true });
+Object.defineProperty(DB, "comptes",   { get(){ return this.accounts; }, set(v){ this.accounts = v; }, configurable: true });
+DB.services = DB.services || SERVICES.slice();
 function defaultAgents(){
   return [
     { nom:"M. WILFRIED GADOU", service:"DIRECTION", actif:true },
@@ -871,15 +870,29 @@ function connectAccount(acc){
   renderUser(); refreshAll(); go("dashboard");
   toast("Bienvenue, "+acc.role, acc.label+" · espace de pilotage central de la mobilité.","ok");
 }
-function doLogin(ident, pwd){
+async function doLogin(ident, pwd){
   const id=(ident||"").trim().toLowerCase(), p=(pwd||"");
-  const ok = DB.accounts.find(a=> a.login.toLowerCase()===id && a.hash===hashPwd(p));
-  if(!ok){
-    loginError(!id? "Renseignez votre identifiant." : (!p? "Renseignez votre mot de passe." : "Identifiant ou mot de passe incorrect."));
+  if(!id){ loginError("Renseignez votre identifiant."); return false; }
+  if(!p){ loginError("Renseignez votre mot de passe."); return false; }
+  /* v3.11 : l'authentification est vérifiée par le serveur, jamais dans le navigateur. */
+  const btn=$("#btnLogin"); const libelle = btn? btn.innerHTML : "";
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="ic" data-ico="refresh"></span> Vérification…'; hydrateIcons(btn); }
+  try{
+    const profil = await Cloud.connexion(id, p);
+    Cloud.ouvrirSession(profil);
+    return true;
+  }catch(e){
+    if(e.code==="RESEAU" || e.statut>=500){
+      Cloud.ecranBase(true, "Base de données injoignable", e.message || "");
+      return false;
+    }
+    if(e.code==="TROP_DE_TENTATIVES") loginError("Trop de tentatives. Patientez quelques minutes.");
+    else if(e.code==="COMPTE_INACTIF") loginError("Ce compte est désactivé.");
+    else loginError(!p? "Renseignez votre mot de passe." : "Identifiant ou mot de passe incorrect.");
     return false;
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML=libelle; hydrateIcons(btn); }
   }
-  connectAccount(ok);
-  return true;
 }
 function doGuest(){
   /* Accès anonyme désactivé : la plateforme exige un identifiant nominatif. */
@@ -888,6 +901,8 @@ function doGuest(){
   toast("Accès refusé","Un identifiant est obligatoire pour entrer dans la plateforme.","err");
 }
 function logout(){
+  /* v3.11 : révocation de la session côté serveur (le jeton ne peut plus servir). */
+  try{ if(typeof Cloud!=="undefined") Cloud.deconnexion(); }catch(e){}
   try{ sessionStorage.removeItem("vt_session"); }catch(e){}
   if(typeof closePops==="function") closePops();
   if(typeof go==="function") go("dashboard");

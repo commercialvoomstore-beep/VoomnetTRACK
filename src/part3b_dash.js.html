@@ -814,11 +814,16 @@ function renderAccounts(){
         '<button class="btn btn-ghost btn-sm" data-accreset="'+i+'">'+ic("refresh")+' Rétablir l\'identifiant par défaut</button></div>'+
     '</div>').join("");
   $$("[data-accsave]").forEach(b=>b.onclick=()=>saveAccount(Number(b.dataset.accsave)));
-  $$("[data-accreset]").forEach(b=>b.onclick=()=>{
-    const i=Number(b.dataset.accreset), def=ACCOUNT_DEFAULTS[i];
-    DB.accounts[i].login=def.login; DB.accounts[i].hash=def.hash; DB.save();
-    renderAccounts();
-    toast("Identifiant rétabli", def.login+" · le mot de passe d'origine est de nouveau actif.","ok");
+  $$("[data-accreset]").forEach(b=>b.onclick=async ()=>{
+    const a=DB.accounts[Number(b.dataset.accreset)];
+    if(!a) return;
+    if(!confirm("Rétablir l'accès d'origine du compte « "+a.label+" » ?\n\nLe mot de passe d'origine redeviendra actif et les sessions ouvertes seront fermées.")) return;
+    try{
+      await Cloud.reinitialiserCompte(a.id);
+      await Cloud.chargerEtat();
+      renderAccounts();
+      toast("Accès rétabli", a.label+" · le mot de passe d'origine est de nouveau actif.","ok");
+    }catch(e){ toast("Réinitialisation impossible", e.message, "err"); }
   });
 }
 function saveAccount(i){
@@ -828,13 +833,20 @@ function saveAccount(i){
   if(DB.accounts.some((x,j)=> j!==i && x.login.toLowerCase()===login.toLowerCase())){
     toast("Identifiant déjà utilisé","Chaque compte doit avoir un identifiant unique.","err"); return; }
   if(pwd && pwd.length<6){ toast("Mot de passe trop court","Prévoyez au moins 6 caractères.","err"); return; }
-  a.login=login;
-  a.label=label||a.label;
-  if(pwd) a.hash=hashPwd(pwd);
-  DB.save();
-  if(a.id===sessionAccountId()){ DB.user.name=a.label; DB.user.role=a.role; DB.save(); renderUser(); }
-  renderAccounts();
-  toast("Compte mis à jour", a.login+" · connexion "+(pwd? "et mot de passe modifiés":"inchangée"),"ok");
+  /* v3.11 : l'enregistrement est fait par le serveur (le mot de passe y est haché ;
+     l'application ne voit ni n'écrit jamais d'empreinte). */
+  (async ()=>{
+    try{
+      await Cloud.modifierCompte(a.id, { login: login, label: label||a.label });
+      if(pwd) await Cloud.motDePasseCompte(a.id, pwd);
+      await Cloud.chargerEtat();
+      renderAccounts(); refreshAll();
+      if(a.id===sessionAccountId()){ const moi=DB.accounts.find(x=>x.id===a.id); if(moi){ DB.user.name=moi.label; DB.user.role=moi.role; renderUser(); } }
+      toast("Compte mis à jour", login+" · enregistré dans la base"+(pwd? " (mot de passe modifié)":""), "ok");
+    }catch(e){
+      toast("Modification refusée", e.message, "err");
+    }
+  })();
 }
 
 /* ------------------------------ 8. INITIALISATION ------------------------------ */
@@ -842,7 +854,10 @@ function init(){
   DB.load();
   hydrateIcons(document);
   hydrateBrand(document);
-  initSplash(()=>{ if(!hasSession()) showLogin(); });
+  /* v3.11 : l'application se connecte d'abord à la base de données de l'entreprise.
+     Sans base, aucune donnée locale n'est utilisée et un écran clair propose de réessayer. */
+  Cloud.brancherEcritures();
+  initSplash(()=>{ Cloud.demarrer(); });
 
   /* comptes & sécurité */
   renderAccounts();
@@ -854,8 +869,8 @@ function init(){
   $("#scrim").onclick=()=>{ $("#sidebar").classList.remove("open"); $("#scrim").classList.remove("on"); };
   bindPops();
   /* ---- écran d'accès : identifiant + mot de passe ---- */
-  const tryLogin=()=>{
-    const ok = doLogin($("#loginIdent").value, $("#loginPwd").value);
+  const tryLogin=async ()=>{
+    const ok = await doLogin($("#loginIdent").value, $("#loginPwd").value);
     if(ok){ const p=$("#loginPwd"); if(p) p.value=""; }
   };
   const goNow=$("#btnLogin"); if(goNow) goNow.onclick=tryLogin;

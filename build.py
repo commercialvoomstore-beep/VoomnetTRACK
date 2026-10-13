@@ -45,7 +45,7 @@ repl["__APPLE_ICON__"]   = "data:image/png;base64,"  + b64(os.path.join(ASSETS, 
 
 parts = [open(os.path.join(SRC, f), encoding="utf-8").read()
          for f in ("part1_head.html", "part2_body.html", "part3_core.js.html",
-                   "part3b_dash.js.html", "part4_pdf.js.html")]
+                   "part3c_api.js.html", "part3b_dash.js.html", "part4_pdf.js.html")]
 
 html = "\n".join(parts)
 

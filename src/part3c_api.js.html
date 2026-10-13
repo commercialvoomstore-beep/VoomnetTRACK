@@ -1,0 +1,287 @@
+<script>
+/* ============================================================================
+   21. COUCHE CLOUD — liaison de l'interface à la base PostgreSQL (Neon)
+   ----------------------------------------------------------------------------
+   • L'application est STRICTEMENT EN LIGNE : la base est la seule source de
+     vérité. Si la base est injoignable, aucune donnée locale n'est utilisée :
+     un écran clair invite à réessayer.
+   • L'identité et le rôle sont vérifiés par le serveur. Le navigateur ne
+     stocke qu'un jeton de session (mémoire de l'onglet) — jamais de mot de
+     passe, jamais d'empreinte.
+   • Chaque écriture part en base ; en cas d'échec, la modification est
+     annulée et signalée (aucune divergence silencieuse).
+   ============================================================================ */
+"use strict";
+const Cloud = (() => {
+  const API = "/api";
+  const CLE_JETON = "vt_token";
+  let jeton = "";
+  try { jeton = sessionStorage.getItem(CLE_JETON) || ""; } catch (e) { jeton = ""; }
+
+  let enLigne = false;          /* la base répond-elle ? */
+  let instantane = null;        /* dernière photo de l'état côté base   */
+  let minuteur = null;
+  let synchro = "repos";        /* repos | en_cours | erreur */
+  let profil = null;
+
+  /* ------------------------------ appels -------------------------------- */
+  async function appel(methode, chemin, corps, opts) {
+    opts = opts || {};
+    const h = { "Accept": "application/json" };
+    if (corps !== undefined && corps !== null) h["Content-Type"] = "application/json";
+    if (jeton && !opts.sansJeton) h["Authorization"] = "Bearer " + jeton;
+    let rep;
+    try {
+      rep = await fetch(API + chemin, {
+        method: methode, headers: h, cache: "no-store",
+        body: corps === undefined || corps === null ? undefined : JSON.stringify(corps)
+      });
+    } catch (e) {
+      const err = new Error("Base de données injoignable.");
+      err.code = "RESEAU"; throw err;
+    }
+    let data = null;
+    try { data = await rep.json(); } catch (e) { data = null; }
+    if (!rep.ok) {
+      const err = new Error((data && data.erreur) || ("Erreur " + rep.status));
+      err.code = (data && data.code) || String(rep.status);
+      err.statut = rep.status;
+      if (rep.status === 401) sessionPerdue();
+      throw err;
+    }
+    return data || {};
+  }
+
+  /* ------------------------------ écrans -------------------------------- */
+  function ecranBase(etat, message, detail) {
+    let ov = document.getElementById("cloudOff");
+    if (!ov) {
+      ov = document.createElement("div");
+      ov.id = "cloudOff";
+      ov.innerHTML =
+        '<div class="cloud-off-card" role="alertdialog" aria-labelledby="cloudOffT">' +
+          '<span class="cloud-off-ic" id="cloudOffIc"></span>' +
+          '<b id="cloudOffT"></b>' +
+          '<p id="cloudOffM"></p>' +
+          '<p class="cloud-off-d" id="cloudOffD"></p>' +
+          '<button class="btn btn-primary" id="cloudOffRetry"><span class="ic" data-ico="refresh"></span> Réessayer</button>' +
+        '</div>';
+      document.body.appendChild(ov);
+      const b = document.getElementById("cloudOffRetry");
+      if (b) b.onclick = () => { if (typeof hydrateIcons === "function") hydrateIcons(ov); demarrer(true); };
+    }
+    ov.classList.toggle("on", !!etat);
+    if (!etat) return;
+    const ic = document.getElementById("cloudOffIc");
+    if (ic) { ic.innerHTML = typeof ic_svg === "function" ? ic_svg("shieldAlert") : ""; }
+    const t = document.getElementById("cloudOffT");
+    const m = document.getElementById("cloudOffM");
+    const d = document.getElementById("cloudOffD");
+    if (t) t.textContent = message || "Base de données injoignable";
+    if (m) m.textContent = "VOOMNET Track fonctionne en ligne : les données sont centralisées dans la base de l'entreprise.";
+    if (d) d.textContent = detail || "Vérifiez la connexion internet, puis réessayez.";
+    if (typeof hydrateIcons === "function") hydrateIcons(ov);
+  }
+
+  function sessionPerdue() {
+    jeton = "";
+    try { sessionStorage.removeItem(CLE_JETON); } catch (e) {}
+    profil = null;
+    if (typeof closePops === "function") closePops();
+    if (typeof showLogin === "function") showLogin();
+  }
+
+  function badge(texte, type, titre) {
+    const el = document.getElementById("cloudState");
+    if (!el) return;
+    el.className = "chip " + (type || "");
+    el.innerHTML = '<span class="ic" data-ico="' +
+      (type === "ok" ? "check" : type === "err" ? "shieldAlert" : "refresh") + '"></span><span id="cloudStateTxt">' + texte + "</span>";
+    if (titre) el.title = titre;
+    if (typeof hydrateIcons === "function") hydrateIcons(el);
+  }
+  function majBadge() {
+    if (!enLigne) return badge("Base injoignable", "err", "La base de données ne répond pas");
+    if (synchro === "en_cours") return badge("Synchronisation…", "gold", "Envoi des données vers la base");
+    if (synchro === "erreur") return badge("À resynchroniser", "warn", "Une écriture n'a pas pu être enregistrée");
+    const h = instantane && instantane.serveur ? instantane.serveur : "";
+    badge("Base synchronisée" + (h ? " · " + h : ""), "ok", "Toutes les données sont enregistrées dans la base de l'entreprise");
+  }
+
+  /* ------------------------- état base ↔ application --------------------- */
+  function appliquerEtat(s) {
+    DB.services = s.services || [];
+    DB.agents = s.collaborateurs || [];
+    DB.vehicules = s.vehicules || [];
+    DB.vehicles = DB.vehicules;                     /* nom historique conservé */
+    DB.trips = s.deplacements || [];
+    DB.transports = s.transports || DEFAULT_TRANSPORTS.slice();
+    DB.comptes = s.comptes || [];
+    DB.accounts = DB.comptes;                       /* nom historique conservé */
+    DB.params = Object.assign(DB.params || {}, s.parametres || {});
+    /* les services pilotent l'affichage : on remplace le référentiel en mémoire */
+    if (typeof SERVICES !== "undefined" && Array.isArray(s.services) && s.services.length) {
+      SERVICES.length = 0;
+      s.services.forEach(x => SERVICES.push(x));
+    }
+    instantane = { base: JSON.parse(JSON.stringify({
+      trips: DB.trips, agents: DB.agents, vehicules: DB.vehicules, params: DB.params
+    })), serveur: heureCourte() };
+  }
+  function heureCourte() {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+
+  /* ------------------------------- démarrage --------------------------- */
+  async function demarrer(relance) {
+    ecranBase(false);
+    synchro = "repos";
+    badge("Vérification de la base…", "gold");
+    try {
+      const sante = await appel("GET", "/health", null, { sansJeton: true });
+      enLigne = !!(sante && sante.ok);
+      if (!enLigne) throw new Error("Base indisponible");
+    } catch (e) {
+      enLigne = false;
+      badge("Base injoignable", "err");
+      ecranBase(true, "Base de données injoignable",
+        (e && e.message ? e.message + " — " : "") + "L'application se reconnectera dès que la base répondra.");
+      return false;
+    }
+
+    if (jeton) {
+      try {
+        const sess = await appel("GET", "/auth/session");
+        profil = sess.profil;
+        await chargerEtat();
+        ouvrirSession(profil);
+        return true;
+      } catch (e) {
+        if (e.code !== "NON_AUTHENTIFIE" && e.code !== "401") {
+          enLigne = false; badge("Base injoignable", "err");
+          ecranBase(true, "Base de données injoignable", e.message);
+          return false;
+        }
+      }
+    }
+    majBadge();
+    if (typeof showLogin === "function") showLogin();
+    return true;
+  }
+
+  async function chargerEtat() {
+    const s = await appel("GET", "/state");
+    appliquerEtat(s);
+    enLigne = true;
+    majBadge();
+    return s;
+  }
+
+  async function connexion(identifiant, motDePasse) {
+    const r = await appel("POST", "/auth/login", { identifiant: identifiant, motDePasse: motDePasse }, { sansJeton: true });
+    jeton = r.jeton;
+    try { sessionStorage.setItem(CLE_JETON, jeton); } catch (e) {}
+    profil = r.profil;
+    await chargerEtat();
+    return r.profil;
+  }
+
+  function ouvrirSession(p) {
+    try { sessionStorage.setItem("vt_session", p.id); } catch (e) {}
+    DB.user = { name: p.label, role: p.role, account: p.id, admin: !!p.admin };
+    const L = document.getElementById("login");
+    if (L) { L.classList.add("closing"); setTimeout(() => L.classList.add("hidden"), 460); }
+    if (typeof renderUser === "function") renderUser();
+    if (typeof renderAccounts === "function") renderAccounts();
+    if (typeof refreshAll === "function") refreshAll();
+    if (typeof go === "function") go("dashboard");
+    majBadge();
+  }
+
+  async function deconnexion() {
+    try { await appel("POST", "/auth/logout", {}); } catch (e) {}
+    jeton = ""; profil = null; instantane = null;
+    try { sessionStorage.removeItem(CLE_JETON); sessionStorage.removeItem("vt_session"); } catch (e) {}
+    enLigne = true; synchro = "repos";
+  }
+
+  /* ------------------------- synchronisation des écritures -------------- */
+  const TABLES = [
+    { cle: "trips",    chemin: "/deplacements",   collab: "deplacement" },
+    { cle: "agents",   chemin: "/collaborateurs", collab: "collaborateur", mapper: a => ({
+        id: a.id || ("C-" + (a.nom || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 16).toUpperCase()),
+        nom: a.nom, service: a.service, actif: a.actif !== false, email: a.email || "", telephone: a.telephone || "" }) },
+    { cle: "vehicules", chemin: "/vehicules",     collab: "vehicule" }
+  ];
+
+  function idDe(x, table) {
+    if (x.id) return x.id;
+    if (table.cle === "agents") return "C-" + String(x.nom || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 16).toUpperCase();
+    return String(x.nom || Math.random().toString(36).slice(2));
+  }
+
+  function programmerSync() {
+    if (!enLigne) { synchro = "erreur"; majBadge(); return; }
+    if (minuteur) clearTimeout(minuteur);
+    minuteur = setTimeout(() => { minuteur = null; synchroniser(); }, 300);
+  }
+
+  async function synchroniser() {
+    if (!enLigne || !instantane) return;
+    synchro = "en_cours"; majBadge();
+    try {
+      for (const t of TABLES) {
+        const base = instantane.base[t.cle] || [];
+        const actuel = t.cle === "agents" ? (DB.agents || DB[ t.cle ]) : DB[t.cle] || [];
+        const mapBase = new Map(base.map(x => [idDe(x, t), x]));
+        for (const x of actuel) {
+          const env = t.mapper ? t.mapper(x) : x;
+          const id = idDe(x, t);
+          env.id = id;
+          const avant = mapBase.get(id);
+          if (!avant) { await appel("POST", t.chemin, env); }
+          else if (JSON.stringify(avant) !== JSON.stringify(x)) { await appel("PATCH", t.chemin + "/" + encodeURIComponent(id), env); }
+          mapBase.delete(id);
+        }
+        for (const [id] of mapBase) { await appel("DELETE", t.chemin + "/" + encodeURIComponent(id)); }
+      }
+      const pBase = instantane.base.params || {};
+      if (JSON.stringify(pBase) !== JSON.stringify(DB.params || {})) { await appel("PUT", "/parametres", DB.params || {}); }
+
+      instantane = { base: JSON.parse(JSON.stringify({
+        trips: DB.trips, agents: DB.agents, vehicules: DB.vehicules, params: DB.params })), serveur: heureCourte() };
+      synchro = "repos"; majBadge();
+    } catch (e) {
+      synchro = "erreur"; majBadge();
+      if (e.code === "RESEAU" || e.statut >= 500) {
+        enLigne = false;
+        ecranBase(true, "Base de données injoignable", "La dernière modification n'a pas pu être enregistrée.");
+      } else if (typeof toast === "function") {
+        toast("Enregistrement refusé", e.message, "err");
+      }
+    }
+  }
+
+  /* --------------------------- administration comptes ------------------ */
+  async function modifierCompte(id, champs) { await appel("PATCH", "/comptes/" + encodeURIComponent(id), champs); }
+  async function motDePasseCompte(id, pwd) { return appel("POST", "/comptes/" + encodeURIComponent(id) + "/mot-de-passe", { motDePasse: pwd }); }
+  async function reinitialiserCompte(id) { return appel("POST", "/comptes/" + encodeURIComponent(id) + "/reinitialiser", {}); }
+  async function journal(limite) { return appel("GET", "/journal?limite=" + (limite || 100)); }
+
+  /* L'écriture locale déclenche systématiquement l'envoi en base. */
+  function brancherEcritures() {
+    if (typeof DB === "undefined" || DB.__cloudBranche) return;
+    const _save = DB.save.bind(DB);
+    DB.save = function () { const r = _save(); try { programmerSync(); } catch (e) {} return r; };
+    DB.__cloudBranche = true;
+  }
+
+  return {
+    demarrer, connexion, deconnexion, chargerEtat, ouvrirSession, sessionPerdue,
+    programmerSync, synchroniser, brancherEcritures, majBadge, ecranBase,
+    modifierCompte, motDePasseCompte, reinitialiserCompte, journal,
+    estEnLigne: () => enLigne, profil: () => profil, jeton: () => jeton
+  };
+})();
+</script>

@@ -17,3 +17,9 @@ test/*.csv
 
 # --- Paquet git de transfert ---
 *.bundle
+
+# --- v3.11 : secrets et dépendances ---
+.env
+.env.*
+!.env.example
+node_modules/

@@ -1,6 +1,6 @@
 import asyncio, os
 from playwright.async_api import async_playwright
-OUT="/home/user/test/shots4"; os.makedirs(OUT, exist_ok=True)
+OUT="/home/user/test/shots4"   # v3.11 : l'application passe par l'API (node dev-server.js); os.makedirs(OUT, exist_ok=True)
 
 async def main():
     async with async_playwright() as p:
@@ -12,7 +12,7 @@ async def main():
         pg.on("console", lambda m: errs.append("CONSOLE["+m.type+"]: "+m.text) if m.type=="error" else None)
 
         # 1. SPLASH visible au chargement
-        await pg.goto("http://127.0.0.1:8899/index.html")
+        await pg.goto("http://127.0.0.1:8090/index.html")
         await pg.wait_for_timeout(700)
         splash_visible = await pg.is_visible("#splash")
         await pg.screenshot(path=f"{OUT}/00-splash.png")
@@ -104,7 +104,7 @@ async def main():
 
         # 10. Mobile
         mb=await ctx.new_page(); await mb.set_viewport_size({"width":412,"height":900})
-        await mb.goto("http://127.0.0.1:8899/index.html"); await mb.wait_for_timeout(2600)
+        await mb.goto("http://127.0.0.1:8090/index.html"); await mb.wait_for_timeout(2600)
         if await mb.is_visible("#login"):
             await mb.fill("#loginIdent","rh"); await mb.fill("#loginPwd","Rh@Voomnet2026"); await mb.click("#btnLogin"); await mb.wait_for_timeout(1500)
         await mb.screenshot(path=f"{OUT}/50-mobile.png")
@@ -113,7 +113,7 @@ async def main():
 
         # 11. Tablette
         tb=await ctx.new_page(); await tb.set_viewport_size({"width":900,"height":1000})
-        await tb.goto("http://127.0.0.1:8899/index.html"); await tb.wait_for_timeout(2600)
+        await tb.goto("http://127.0.0.1:8090/index.html"); await tb.wait_for_timeout(2600)
         if await tb.is_visible("#login"):
             await tb.fill("#loginIdent","rh"); await tb.fill("#loginPwd","Rh@Voomnet2026"); await tb.click("#btnLogin"); await tb.wait_for_timeout(1500)
         await tb.screenshot(path=f"{OUT}/60-tablette.png")
